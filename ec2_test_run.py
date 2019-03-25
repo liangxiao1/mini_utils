@@ -25,6 +25,7 @@ import pexpect
 import signal
 import shutil
 import errno
+import tempfile
 
 
 def sig_handler(signum, frame):
@@ -120,7 +121,10 @@ def run_avocado(user_name):
     session.expect('$')
     session.logfile = sys.stdout
 
-    cmd = 'avocado run -m config/ec2_test.yaml --filter-by-tags cloudinit --filter-by-tags test_cleanupall tests/aws/ --execution-order=tests-per-variant'
+    if 'acceptance' in args.casetag:
+        cmd = 'avocado run -m config/ec2_test.yaml --filter-by-tags %s tests/aws/ --execution-order=tests-per-variant' % args.casetag
+    else:
+        cmd = 'avocado run -m config/ec2_test.yaml --filter-by-tags %s --filter-by-tags test_cleanupall tests/aws/ --execution-order=tests-per-variant' % args.casetag
     log.info("Run %s" % cmd)
     session.sendline(cmd)
     if args.timeout is None:
@@ -134,8 +138,10 @@ def run_avocado(user_name):
     log_dir = "/home/%s/avocado/job-results/%s" % (
         user_name, os.readlink(log_link))
     log.info("Test completed, log dir %s" % log_dir)
-    log.info("Move it to /tmp")
-    pexpect.run("cp -r %s /tmp/" % log_dir)
+
+    tmpdir = tempfile.mkdtemp(prefix='ec2_', dir='/tmp')
+    log.info("Move it to %s" % tmpdir)
+    pexpect.run("cp -r %s %s/" % (log_dir, tmpdir))
 
 
 parser = argparse.ArgumentParser(
@@ -146,6 +152,9 @@ parser.add_argument('--instance_yaml', dest='instance_yaml', action='store', def
                     help='instance types yaml file')
 parser.add_argument('-d', dest='is_debug', action='store_true',
                     help='run in debug mode', required=False)
+
+parser.add_argument('--clean', dest='is_clean', action='store_true',
+                    help='caution: clean up all exists users /home/cloudN before test', required=False)
 
 parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
                     help='required if specify -c', required=False)
@@ -159,6 +168,8 @@ parser.add_argument('--region', dest='region', default=None, action='store',
                     help='required if specify -c ', required=False)
 parser.add_argument('--timeout', dest='timeout', default=None, action='store',
                     help='bare metal can set to 8hrs each, others can be 7200 each, default it 28800s', required=False)
+parser.add_argument('--casetag', dest='casetag', default='acceptance', action='store',
+                    help='cases filter tag, default is acceptance ', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)
@@ -174,6 +185,11 @@ def main():
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGQUIT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
+
+    if args.is_clean:
+        user_list = map(lambda user: 'cloud'+str(user), range(0, 100))
+        for user in user_list:
+            cleanup_user(user)
 
     user = setup_user()
     setup_avocado(user)
