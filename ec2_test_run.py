@@ -53,10 +53,10 @@ def setup_user():
         log.info("Max 100 users, all are in use!")
         sys.exit(errno.EUSERS)
     try:
-        log.info('Copy /root/.aws to %s' % user_home)
-        pexpect.run("cp -r /root/.aws %s/" % user_home)
+        log.info('Copy /home/ec2/.aws to %s' % user_home)
+        pexpect.run("cp -r /home/ec2/.aws %s/" % user_home)
         log.info('Copy avocado-cloud to %s' % user_home)
-        pexpect.run("cp -r /home/avocado-cloud %s/" % user_home)
+        pexpect.run("cp -r /home/ec2/avocado-cloud %s/" % user_home)
 
     except Exception as err:
         log.error("Copy exception hit!\n %s" % err)
