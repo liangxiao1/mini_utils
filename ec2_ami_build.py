@@ -345,14 +345,14 @@ proxy=http://127.0.0.1:8080
         Name=args.tag,
         NoReboot=False
     )
-    log.info("Terminate instance %s" % vm.id)
     while True:
-        if image.state == '':
+        if image.state == 'available':
             break
         image.reload()
         time.sleep(5)
+    log.info("Terminate instance %s" % vm.id)
     vm.terminate()
-    log.info("New AMI: %s" % image.id)
+    log.info("New AMI:%s" % image.id)
     return image.id
 
 
