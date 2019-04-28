@@ -127,7 +127,7 @@ def run_avocado():
             --execution-order=tests-per-variant --job-results-dir %s' % (args.result_dir,
                                                                          args.casetag, avocado_cloud_dir, args.result_dir)
     log.info("Run cmd: %s" % cmd)
-    ret, output = pexpect.run(cmd, timeout=timeout, withexitstatus=True)
+    ret, output = pexpect.run(cmd, timeout=int(timeout), withexitstatus=True)
     if ret != 0:
         log.error('Error got, ret%s' % ret)
     log.info(output)

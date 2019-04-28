@@ -302,6 +302,10 @@ proxy=http://127.0.0.1:8080
             pkg_names += ' /tmp/%s' % pkg_name
             if 'cloud-init' in pkg_name:
                 stdin, stdout, stderr = ssh_client.exec_command(
+                    'sudo  rm -rf /var/lib/cloud/*', timeout=1800)
+                stdin, stdout, stderr = ssh_client.exec_command(
+                    'sudo  rm -rf /var/run/cloud-init/', timeout=1800)
+                stdin, stdout, stderr = ssh_client.exec_command(
                     'sudo rpm -e %s' % pkg_name_no_ver, timeout=1800)
                 while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
                     time.sleep(1)
@@ -326,6 +330,9 @@ proxy=http://127.0.0.1:8080
                 log.info("" % line.rstrip('\n'))
         except Exception as e:
             log.info("No output/error get from above command")
+        if 'cloud-init' in pkg_name:
+            stdin, stdout, stderr = ssh_client.exec_command(
+                'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
 
     image = vm.create_image(
         BlockDeviceMappings=[
