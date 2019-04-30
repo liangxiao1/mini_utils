@@ -142,6 +142,28 @@ def get_pkg_name(s=None):
     return x.rstrip('-')
 
 
+def run_cmd(ssh_client, cmd, timeout=1800):
+    log.info("Run %s" % cmd)
+    stdin, stdout, stderr = ssh_client.exec_command(
+        cmd, timeout=timeout)
+    while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
+        time.sleep(60)
+        log.info("Wait command complete......")
+    try:
+        log.info("cmd output:")
+        for line in stdout.readlines():
+            log.info("%s" % line.rstrip('\n'))
+        log.info("cmd error:")
+        for line in stderr.readlines():
+            log.info("%s" % line.rstrip('\n'))
+
+    except Exception as e:
+        log.info("Cannot get output/error from above command: %s" % e)
+    ret = stdout.channel.recv_exit_status()
+    log.info("cmd return: %s" % ret)
+    return ret
+
+
 parser = argparse.ArgumentParser(
     description="Generate instance type yaml file for avocado-cloud test. \
     eg.  python ec2_ami_build.py -c --ami-id xxxx --key_name xxxx --security_group_ids xxxx --subnet_id xxxx --region us-west-2 ")
@@ -191,6 +213,8 @@ def main():
     signal.signal(signal.SIGTERM, sig_handler)
     VM = EC2VM()
     vm = VM.create()
+    if vm is None:
+        sys.exit(1)
     vm.wait_until_running()
     vm.reload()
     log.info("Instance created: %s" % vm.id)
@@ -207,13 +231,17 @@ def main():
             if end_time-start_time > 180:
                 log.info("Unable to make connection!")
                 sys.exit(1)
-            ssh_client.connect(
-                vm.public_dns_name,
-                username=args.user,
-                key_filename=args.keyfile,
-                look_for_keys=False,
-                timeout=180
-            )
+            if args.keyfile is None:
+                ssh_client.load_system_host_keys()
+                ssh_client.connect(vm.public_dns_name, username=args.user)
+            else:
+                ssh_client.connect(
+                    vm.public_dns_name,
+                    username=args.user,
+                    key_filename=args.keyfile,
+                    look_for_keys=False,
+                    timeout=180
+                )
             break
         except Exception as e:
             log.info("*** Failed to connect to %s:%d: %r" %
@@ -235,8 +263,8 @@ def main():
         except KeyboardInterrupt:
             print("C-c: Port forwarding stopped.")
             sys.exit(0)
-        stdin, stdout, stderr = ssh_client.exec_command('uname -a')
-        log.info("kernel version: %s" % stdout.read())
+        cmd = 'uname -a'
+        run_cmd(ssh_client, cmd)
     if args.repo_url is not None:
         repo_temp = string.Template('''
 [repo$id]
@@ -260,34 +288,14 @@ proxy=http://127.0.0.1:8080
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
                 log.debug(line)
-        ssh_client.exec_command(
-            'sudo rm -rf /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo rm -rf /etc/yum.repos.d/ami.repo')
         ftp_client = ssh_client.open_sftp()
         ftp_client.put(tmp_repo_file, "/tmp/ami.repo")
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'ls -l /etc/yum.repos.d/')
-        log.info("/etc/yum.repos.d/: %s" % stdout.read())
+        run_cmd(ssh_client, 'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
+        run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo yum update -y')
 
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'cat /etc/yum.repos.d/ami.repo')
-        log.info("New /etc/yum.repos.d/ami.repo: %s" % stdout.read())
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'sudo yum update -y', timeout=1800)
-        while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
-            time.sleep(1)
-            log.info("Wait command complete......")
-
-        try:
-            log.info("Update system output:")
-            for line in stdout.readlines:
-                log.info("" % line.rstrip('\n'))
-            log.info("Update system error:")
-            for line in stderr.readlines:
-                log.info("" % line.rstrip('\n'))
-        except Exception as e:
-            log.info("No output/error get from above command")
     if args.pkg_url is not None:
         pkg_names = ''
         for pkg in args.pkg_url.split(','):
@@ -301,35 +309,17 @@ proxy=http://127.0.0.1:8080
             ftp_client.put("/tmp/%s" % pkg_name, "/tmp/%s" % pkg_name)
             pkg_names += ' /tmp/%s' % pkg_name
             if 'cloud-init' in pkg_name:
-                stdin, stdout, stderr = ssh_client.exec_command(
-                    'sudo  rm -rf /var/lib/cloud/*', timeout=1800)
-                stdin, stdout, stderr = ssh_client.exec_command(
-                    'sudo  rm -rf /var/run/cloud-init/', timeout=1800)
-                stdin, stdout, stderr = ssh_client.exec_command(
-                    'sudo rpm -e %s' % pkg_name_no_ver, timeout=1800)
-                while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
-                    time.sleep(1)
-                    log.info("Wait command complete......")
+                run_cmd(ssh_client, 'sudo  rm -rf /var/lib/cloud/*')
+                run_cmd(ssh_client, 'sudo  rm -rf /var/run/cloud-init/')
+                run_cmd(ssh_client, 'sudo rpm -e %s' % pkg_name_no_ver)
         log.info("Install %s to instance!" % pkg_names)
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'sudo yum localinstall -y %s' % pkg_names, timeout=1800)
-        while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
-            time.sleep(1)
-            log.info("Wait command complete......")
-        stdin, stdout, stderr = ssh_client.exec_command(
-            'sudo rpm -ivh %s --force' % pkg_names, timeout=1800)
-        while not stdout.channel.exit_status_ready() and stdout.channel.recv_exit_status():
-            time.sleep(1)
-            log.info("Wait command complete......")
-        try:
-            log.info("Installation output:")
-            for line in stdout.readlines:
-                log.info("" % line.rstrip('\n'))
-            log.info("Installation error:")
-            for line in stderr.readlines:
-                log.info("" % line.rstrip('\n'))
-        except Exception as e:
-            log.info("No output/error get from above command")
+        cmd = 'sudo yum localinstall -y %s' % pkg_names
+        if run_cmd(ssh_client, cmd) > 0:
+            cmd = 'sudo rpm -ivh %s --force' % pkg_names
+            if run_cmd(ssh_client, cmd):
+                log.info("Cannot install successfully, exit!")
+                vm.terminate()
+                sys.exit(1)
         if 'cloud-init' in pkg_name:
             stdin, stdout, stderr = ssh_client.exec_command(
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
