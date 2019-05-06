@@ -90,7 +90,7 @@ class EC2VM:
         self.key_name = args.key_name
         self.security_group_ids = args.security_group_ids
         self.subnet_id = args.subnet_id
-        self.instance_type = 't2.large'
+        self.instance_type = args.instance_type
         self.zone = args.zone
         self.vm = None
 
@@ -182,6 +182,8 @@ parser.add_argument('--security_group_ids', dest='security_group_ids', default=N
                     help='security_group_ids', required=False)
 parser.add_argument('--subnet_id', dest='subnet_id', default=None, action='store',
                     help='subnet_id', required=False)
+parser.add_argument('--instance_type', dest='instance_type', default='t2.large', action='store',
+                    help='specify instance type, default is t2.large', required=False)
 parser.add_argument('--zone', dest='zone', default=None, action='store',
                     help='which zone you are using ', required=False)
 parser.add_argument('--timeout', dest='timeout', default=None, action='store',
