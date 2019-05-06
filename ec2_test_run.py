@@ -123,9 +123,11 @@ def run_avocado():
             --execution-order=tests-per-variant --job-results-dir %s' % (args.result_dir,
                                                                          args.casetag, avocado_cloud_dir, args.result_dir)
     else:
-        cmd = 'avocado run -m %s/ec2_test.yaml --filter-by-tags %s --filter-by-tags test_cleanupall %s/tests/aws/ \
+        casetags = ''.join(
+            map(lambda s: ' --filter-by-tags '+s, args.casetag.split(',')))
+        cmd = 'avocado run -m %s/ec2_test.yaml %s --filter-by-tags test_cleanupall %s/tests/aws/ \
             --execution-order=tests-per-variant --job-results-dir %s' % (args.result_dir,
-                                                                         args.casetag, avocado_cloud_dir, args.result_dir)
+                                                                         casetags, avocado_cloud_dir, args.result_dir)
     log.info("Run cmd: %s" % cmd)
     ret, output = pexpect.run(cmd, timeout=int(timeout), withexitstatus=True)
     if ret != 0:
@@ -161,7 +163,7 @@ parser.add_argument('--zone', dest='zone', default=None, action='store',
 parser.add_argument('--timeout', dest='timeout', default=None, action='store',
                     help='bare metal can set to 8hrs each, others can be 7200 each, default it 28800s', required=False)
 parser.add_argument('--casetag', dest='casetag', default='acceptance', action='store',
-                    help='cases filter tag, default is acceptance ', required=False)
+                    help='cases filter tag, default is acceptance, more tags can be seperated by ","', required=False)
 parser.add_argument('--result_dir', dest='result_dir', default=None, action='store',
                     help='where to save the result', required=True)
 
