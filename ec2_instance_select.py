@@ -165,6 +165,9 @@ def df_parser(df):
     for instance in pick_list:
         # logging.info(df[df['API Name'] == instance]['API Name'].values[0])
         log.info("%s selected", instance)
+        if 'nano' in instance:
+            log.info("RHEL not support run as nano instance,skip!")
+            continue
         # log.info(df[df['API Name'] == instance]['Instance Storage'].values)
         if args.check_live:
             vm = EC2VM()
