@@ -191,9 +191,10 @@ parser.add_argument('--timeout', dest='timeout', default=None, action='store',
 parser.add_argument('--tag', dest='tag', default=None, action='store',
                     help='resource tag to identify,default is virtqe', required=False)
 parser.add_argument('--pkg_url', dest='pkg_url', default=None, action='store',
-                    help='specify it if install pkg to ami, seperate by ","', required=False)
+                    help='specify it which pkgs are not in repo, seperate by ","', required=False)
 parser.add_argument('--repo_url', dest='repo_url', default=None, action='store',
                     help='specify it if sync with repo, or pkg dependency,seperate by ","', required=False)
+parser.add_argument('--pkgs',dest='pkgs',default=None,action='store',help='if repo is accessible, specify pkg names which you want to add',required=False)
 parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
 
@@ -297,7 +298,8 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'sudo yum update -y')
-
+    if args.pkgs is not None:
+        run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
     if args.pkg_url is not None:
         pkg_names = ''
         for pkg in args.pkg_url.split(','):
