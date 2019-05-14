@@ -99,6 +99,8 @@ def setup_avocado():
                 line = 'ssh_key_name : %s\n' % args.key_name
             if line.startswith('ec2_tagname : '):
                 line = 'ec2_tagname : virtqe_auto_cloud\n'
+            if line.startswith('ltp_url : '):
+                line = 'ltp_url: %s\n' % args.ltp_url
             with open(tmp_yaml, 'a') as fd:
                 fd.writelines(line)
 
@@ -166,6 +168,8 @@ parser.add_argument('--casetag', dest='casetag', default='acceptance', action='s
                     help='cases filter tag, default is acceptance, more tags can be seperated by ","', required=False)
 parser.add_argument('--result_dir', dest='result_dir', default=None, action='store',
                     help='where to save the result', required=True)
+parser.add_argument('--ltp_url', dest='ltp_url', default=None, action='store',
+                    help='ltp rpm url', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)
