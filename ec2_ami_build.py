@@ -32,7 +32,7 @@ import string
 
 default_port = 22
 
-
+ret_val = 0
 def sig_handler(signum, frame):
     logging.info('Got signal %s, exit!', signum)
     sys.exit(0)
@@ -297,9 +297,9 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
-        run_cmd(ssh_client, 'sudo yum update -y')
+        ret_val = run_cmd(ssh_client, 'sudo yum update -y')
     if args.pkgs is not None:
-        run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
+        ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
     if args.pkg_url is not None:
         pkg_names = ''
         for pkg in args.pkg_url.split(','):
@@ -327,7 +327,10 @@ proxy=http://127.0.0.1:8080
         if 'cloud-init' in pkg_name:
             stdin, stdout, stderr = ssh_client.exec_command(
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
-
+    if ret_val > 0:
+        log.error("Failed to update system!")
+        vm.terminate()
+        sys.exit(ret_val)
     image = vm.create_image(
         BlockDeviceMappings=[
             {

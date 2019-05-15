@@ -99,7 +99,7 @@ def setup_avocado():
                 line = 'ssh_key_name : %s\n' % args.key_name
             if line.startswith('ec2_tagname : '):
                 line = 'ec2_tagname : virtqe_auto_cloud\n'
-            if line.startswith('ltp_url : '):
+            if line.startswith('ltp_url : ') and args.ltp_url is not None:
                 line = 'ltp_url: %s\n' % args.ltp_url
             with open(tmp_yaml, 'a') as fd:
                 fd.writelines(line)
