@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 '''
 github : https://github.com/liangxiao1/mini_utils
 This tool is for dumping image information from image task json result and generate yamls for dva run
@@ -8,6 +9,10 @@ This tool is for dumping image information from image task json result and gener
 import json
 import string
 import os
+import sys
+if sys.version.startswith('2.7'):
+    print('Only support run in python3')
+    sys.exit(1)
 import urllib.request as request
 import logging
 import argparse
@@ -31,6 +36,8 @@ log = logging.getLogger(__name__)
 if args.is_debug:
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)s:%(message)s')
+else:
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 url = args.image_url
 s = request.urlopen(url)
 log.info('Get data from %s' % s.geturl())
