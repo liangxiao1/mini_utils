@@ -298,8 +298,16 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
         ret_val = run_cmd(ssh_client, 'sudo yum update -y')
+        if ret_val > 0:
+            log.error("Failed to update system!")
+            vm.terminate()
+            sys.exit(ret_val)
     if args.pkgs is not None:
         ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
+        if ret_val > 0:
+            log.error("Failed to update system!")
+            vm.terminate()
+            sys.exit(ret_val)
     if args.pkg_url is not None:
         pkg_names = ''
         for pkg in args.pkg_url.split(','):
@@ -318,12 +326,10 @@ proxy=http://127.0.0.1:8080
                 run_cmd(ssh_client, 'sudo rpm -e %s' % pkg_name_no_ver)
         log.info("Install %s to instance!" % pkg_names)
         cmd = 'sudo yum localinstall -y %s' % pkg_names
-        if run_cmd(ssh_client, cmd) > 0:
+        ret_val = run_cmd(ssh_client, cmd)
+        if ret_val > 0:
             cmd = 'sudo rpm -ivh %s --force' % pkg_names
-            if run_cmd(ssh_client, cmd):
-                log.info("Cannot install successfully, exit!")
-                vm.terminate()
-                sys.exit(1)
+            ret_val = run_cmd(ssh_client, cmd)
         if 'cloud-init' in pkg_name:
             stdin, stdout, stderr = ssh_client.exec_command(
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
