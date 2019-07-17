@@ -50,53 +50,20 @@ def df_retrive():
         logging.info("No region specified, use default us-gov-west-1")
         src_url = 'https://www.ec2instances.info/?region=us-gov-west-1'
     logging.info("Get instance data from %s", src_url)
-    '''
-    Below section refer to https://towardsdatascience.com/web-scraping-html-tables-with-python-c9baba21059
-    '''
     src_page = requests.get(src_url)
-    doc = lh.fromstring(src_page.content)
-    tr_elements = doc.xpath('//tr')
-    [len(T) for T in tr_elements[:52]]
-    col = []
-    i = 0
-    for t in tr_elements[0]:
-        i += 1
-        name = t.text_content()
+    with open('/tmp/tt','wb') as fh:
+        fh.write(src_page.content)
+#    with gzip.open('/tmp/tt','rb') as fh:
+#        src_page=fh.read()
 
-        name = name.strip('\n ')
-        # print("%d,%s" % (i, name))
-        col.append((name, []))
-
-    for j in range(1, len(tr_elements)):
-
-        T = tr_elements[j]
-
-        if len(T) != 52:
-            break
-
-        i = 0
-        for t in T.iterchildren():
-            data = t.text_content()
-            if i > 0:
-                try:
-                    data = int(data)
-                except:
-                    pass
-            col[i][1].append(data)
-            i += 1
-    Dict = {title: column for (title, column) in col}
-    df = pd.DataFrame(Dict)
-    # df.to_csv('test.csv')
-    df.sort_values('API Name')
-    return df
-    '''
+    with open('/tmp/tt','r') as fh:
+        src_content = fh.read()
     #it is a fast way to read html table, but not always works as expected.
-    Use above solution firstly.
-    df = pd.read_html(src_url)
+    #Use above solution firstly.
+    df = pd.read_html(src_content)
     df[0].sort_values('API Name')
     logging.info(df[0]['API Name'])
     return df[0]
-    '''
 
 
 def deal_instancetype(x):
