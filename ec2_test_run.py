@@ -70,7 +70,7 @@ def setup_avocado():
     instance_yaml = args.instance_yaml
     if not os.path.exists(instance_yaml):
         log.error("No %s found!" % instance_yaml)
-        return False
+        sys.exit(1)
     instance_yaml_dest = '%s/ec2_instance_types.yaml' % args.result_dir
     if os.path.exists(instance_yaml_dest):
         os.unlink(instance_yaml_dest)
