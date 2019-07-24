@@ -13,8 +13,8 @@ parser = argparse.ArgumentParser('To list/clean up instances cross regions')
 parser.add_argument('--key_name', dest='key_name',action='store',help='specify for owner, seperated by ","',required=True)
 parser.add_argument('--delete', dest='delete',action='store_true',help='optional, specify for delete instances, otherwise list only',required=False)
 parser.add_argument('-d', dest='is_debug',action='store_true',help='optional, run in debug mode', required=False,default=False)
-parser.add_argument('--skip_region', dest='skip_region',action='store',help='optional skip regions, seperated by ","',required=False,default='')
-parser.add_argument('--only_region', dest='only_region',action='store',help='optional only regions for checking, seperated by ","',required=False,default='')
+parser.add_argument('--skip_region', dest='skip_region',action='store',help='optional skip regions, seperated by ","',required=False,default=None)
+parser.add_argument('--only_region', dest='only_region',action='store',help='optional only regions for checking, seperated by ","',required=False,default=None)
 args = parser.parse_args()
 
 log = logging.getLogger(__name__)
@@ -28,10 +28,10 @@ region_list = client.describe_regions()
 
 for region in region_list['Regions']:
     region_name = region['RegionName']
-    if region_name in args.skip_region:
+    if args.skip_region is not None and region_name in args.skip_region:
         log.info('Skip %s' % region_name)
         continue
-    if region_name not in args.only_region:
+    if args.only_region is not None and region_name not in args.only_region:
         log.info('Skip %s' % region_name)
         continue
     log.info("Check %s " % region_name)
