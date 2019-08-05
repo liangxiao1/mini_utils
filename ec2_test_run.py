@@ -41,6 +41,9 @@ def setup_dir():
     if not os.path.exists(args.result_dir):
         log.info("%s not found" % args.result_dir)
         sys.exit(errno.ENOENT)
+    if not os.path.exists(avocado_cloud_dir):
+        log.info("%s please put avocado-cloud to /home/ec2 directory")
+        sys.exit(errno.ENOENT)
     try:
         log.info('Copy ec2 config files to %s' % args.result_dir)
         ec2_env_yaml = '%s/ec2_env_conf.yaml' % args.result_dir
@@ -101,6 +104,8 @@ def setup_avocado():
                 line = 'ec2_tagname : virtqe_auto_cloud\n'
             if line.startswith('ltp_url : ') and args.ltp_url is not None:
                 line = 'ltp_url: %s\n' % args.ltp_url
+            if line.startswith('code_cover : '):
+                line = 'code_cover : %s\n' % args.is_gcov
             with open(tmp_yaml, 'a') as fd:
                 fd.writelines(line)
 
@@ -170,6 +175,8 @@ parser.add_argument('--result_dir', dest='result_dir', default=None, action='sto
                     help='where to save the result', required=True)
 parser.add_argument('--ltp_url', dest='ltp_url', default=None, action='store',
                     help='ltp rpm url', required=False)
+parser.add_argument('-g', dest='is_gcov', action='store_true',
+                    help='optional,enable collect code coverage report, image should have gcov version kernel installed', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)
