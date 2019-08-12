@@ -130,6 +130,16 @@ def df_parser(df):
         cfg_file = args.cfg_name
 
     for instance in pick_list:
+        if args.skip_instance is not None:
+            skip_y = False
+            log.debug(args.skip_instance.split(','))
+            for i in args.skip_instance.split(','):
+                if instance.startswith(i):
+                    log.info("skipped %s as skip_instance specified" %i)
+                    skip_y = True
+                    continue
+            if skip_y:
+                continue
         # logging.info(df[df['API Name'] == instance]['API Name'].values[0])
         log.info("%s selected", instance)
         if 'nano' in instance:
@@ -262,7 +272,8 @@ parser.add_argument('-s', dest='split_num', action='store',
                     required=False, help='split cfg file into severa; files which have how many instances in each file')
 parser.add_argument('-t', dest='instances', action='store', default=None, required=False,
                     help='select instances from specified type, can choose multi like c5a,m5d')
-
+parser.add_argument('--skip_instance', dest='skip_instance', action='store',
+                    help='instance type to skip, seperated by ","', required=False)
 parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
                     help='required if specify -c', required=False)
 parser.add_argument('--key_name', dest='key_name', default=None, action='store',
