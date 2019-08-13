@@ -118,8 +118,6 @@ def df_parser(df):
     elif args.is_all:
         pick_list = instance_list
 
-    # logging.info(pick_list)
-
     write_count = 0
     wroten_count = 0
     if args.split_num is not None:
@@ -128,7 +126,9 @@ def df_parser(df):
         cfg_file = "ec2_instance_types.yaml"
     else:
         cfg_file = args.cfg_name
-
+    if args.num_instances is not None:
+        log.info("Select max %s instances" % args.num_instances)
+        pick_list = random.sample(pick_list, int(args.num_instances))
     for instance in pick_list:
         if args.skip_instance is not None:
             skip_y = False
@@ -274,6 +274,8 @@ parser.add_argument('-t', dest='instances', action='store', default=None, requir
                     help='select instances from specified type, can choose multi like c5a,m5d')
 parser.add_argument('--skip_instance', dest='skip_instance', action='store',
                     help='instance type to skip, seperated by ","', required=False)
+parser.add_argument('--num_instances', dest='num_instances', action='store',
+                    help='the max num of random select instance', required=False)
 parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
                     help='required if specify -c', required=False)
 parser.add_argument('--key_name', dest='key_name', default=None, action='store',
