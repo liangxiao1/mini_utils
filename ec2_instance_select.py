@@ -126,6 +126,13 @@ def df_parser(df):
         cfg_file = "ec2_instance_types.yaml"
     else:
         cfg_file = args.cfg_name
+    for instance in pick_list:
+        if args.skip_instance is not None:
+            log.debug(args.skip_instance.split(','))
+            for i in args.skip_instance.split(','):
+                if instance.startswith(i):
+                    log.info("skipped %s as skip_instance specified" %i)
+                    pick_list.remove(instance)
     if args.num_instances is not None:
         log.info("Select max %s instances" % args.num_instances)
         pick_list = random.sample(pick_list, int(args.num_instances))

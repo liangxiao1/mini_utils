@@ -49,7 +49,7 @@ if os.path.exists(json_file):
 with open(json_file, 'b+w') as fh:
     fh.write(s.read())
 log.info('Data saved to %s' % json_file)
-if not str(args.version).startswith('6'):
+if not str(args.version).startswith('6') and not str(args.version).startswith('7.2') and not str(args.version).startswith('7.3'):
     cfg_tmp = string.Template('''- ami: $ami_id
   arch:
     - arch: x86_64
