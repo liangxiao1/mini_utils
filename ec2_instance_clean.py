@@ -11,6 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser('To list/clean up instances cross regions')
 parser.add_argument('--key_name', dest='key_name',action='store',help='specify for owner, seperated by ","',required=False)
+#parser.add_argument('--instance_name', dest='instance_name',action='store',help='specify for instance_name, seperated by ","',required=False)
 parser.add_argument('--tags', dest='tags',action='store',help='specify for tags, seperated by ","',required=False)
 parser.add_argument('--delete', dest='delete',action='store_true',help='optional, specify for delete instances, otherwise list only',required=False)
 parser.add_argument('-d', dest='is_debug',action='store_true',help='optional, run in debug mode', required=False,default=False)
@@ -51,7 +52,12 @@ for region in region_list['Regions']:
                     if instance['Instances'][0].has_key('KeyName'):
                         if key_name in instance['Instances'][0]['KeyName']:
                             instance_id = instance['Instances'][0]['InstanceId']
-                            log.info('Key:%s id:%s' % (instance['Instances'][0]['KeyName'],instance_id ))
+                            if instance['Instances'][0].has_key('Tags'):
+                                log.info('Key:%s Tag: %s, LaunchTime: %s id:%s' % (instance['Instances'][0]['KeyName'],
+                                    instance['Instances'][0]['Tags'][0]['Value'],instance['Instances'][0]['LaunchTime'],instance_id ))
+                            else:
+                                log.info('Key:%s Tag: N/A LaunchTime: %s id:%s' % (instance['Instances'][0]['KeyName'],
+                                    instance['Instances'][0]['LaunchTime'],instance_id ))
                             if args.delete:
                                 ec2 = boto3.resource('ec2',region_name=region_name)
                                 vm = ec2.Instance(instance_id)
@@ -63,7 +69,8 @@ for region in region_list['Regions']:
                         for val  in instance['Instances'][0]['Tags'][0].values():
                             if tag in val:
                                 instance_id = instance['Instances'][0]['InstanceId']
-                                log.info('tag:%s id:%s' % (instance['Instances'][0]['Tags'][0]['Value'],instance_id ))
+                                log.info('Key:%s Tag: %s, LaunchTime: %s id:%s' % (instance['Instances'][0]['KeyName'],
+                                    instance['Instances'][0]['Tags'][0]['Value'],instance['Instances'][0]['LaunchTime'],instance_id ))
                                 if args.delete:
                                     ec2 = boto3.resource('ec2',region_name=region_name)
                                     vm = ec2.Instance(instance_id)
