@@ -297,6 +297,8 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init.log')
+        run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
         ret_val = run_cmd(ssh_client, 'sudo yum update -y')
         if ret_val > 0:
             log.error("Failed to update system!")
