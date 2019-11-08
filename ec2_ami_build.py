@@ -51,18 +51,26 @@ def handler(chan, host, port):
         "Connected!  Tunnel open %r -> %r -> %r"
         % (chan.origin_addr, chan.getpeername(), (host, port))
     )
+    retry_count = 0
     while True:
         r, w, x = select.select([sock, chan], [], [])
         if sock in r:
             data = sock.recv(1024)
             if len(data) == 0:
-                break
-            chan.send(data)
+                retry_count+=1
+                if retry_count>100:
+                    log.debug("No data received from sock")
+                    break
+            else:
+                chan.send(data)
         if chan in r:
             data = chan.recv(1024)
             if len(data) == 0:
-                break
-            sock.send(data)
+                if retry_count>100:
+                    log.debug("No data received from chan")
+                    break
+            else:
+                sock.send(data)
     chan.close()
     sock.close()
     log.debug("Tunnel closed from %r" % (chan.origin_addr,))
@@ -299,6 +307,8 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init.log')
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
+        run_cmd(ssh_client, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"')
+        run_cmd(ssh_client, 'sudo bash -c "echo "timeout=1800" >> /etc/yum.conf"')
         ret_val = run_cmd(ssh_client, 'sudo yum update -y')
         if ret_val > 0:
             log.error("Failed to update system!")
