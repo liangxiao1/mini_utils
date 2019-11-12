@@ -300,6 +300,9 @@ proxy=http://127.0.0.1:8080
             for line in fh.readlines():
                 log.debug(line)
         run_cmd(ssh_client, 'sudo rm -rf /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo yum repolist enabled')
+        run_cmd(ssh_client, 'sudo yum-config-manager --disable rh*')
+        run_cmd(ssh_client, 'sudo yum repolist enabled')
         ftp_client = ssh_client.open_sftp()
         ftp_client.put(tmp_repo_file, "/tmp/ami.repo")
         run_cmd(ssh_client, 'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
