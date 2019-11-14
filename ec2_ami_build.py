@@ -312,15 +312,27 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
         run_cmd(ssh_client, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"')
         run_cmd(ssh_client, 'sudo bash -c "echo "timeout=1800" >> /etc/yum.conf"')
-        ret_val = run_cmd(ssh_client, 'sudo yum update -y')
+        for i in range(1,10):
+            ret_val = run_cmd(ssh_client, 'sudo yum update -y')
+            if ret_val > 0:
+                log.error("Failed to update system, try again! max:10 now:%s" % i)
+                time.sleep(5)
+                continue
+            break
         if ret_val > 0:
-            log.error("Failed to update system!")
+            log.error("Failed to update system again, exit!")
             vm.terminate()
             sys.exit(ret_val)
     if args.pkgs is not None:
-        ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
+        for i in range(1,10):
+            ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
+            if ret_val > 0:
+                log.error("Failed to update system, try again! max:10 now:%s" % i)
+                time.sleep(5)
+                continue
+            break
         if ret_val > 0:
-            log.error("Failed to update system!")
+            log.error("Failed to update system again, exit!")
             vm.terminate()
             sys.exit(ret_val)
     if args.pkg_url is not None:
