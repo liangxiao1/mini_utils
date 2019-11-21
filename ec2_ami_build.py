@@ -308,6 +308,7 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo mv /tmp/ami.repo /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'ls -l /etc/yum.repos.d/')
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo bash -c "echo "" > /var/log/secure"')
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init.log')
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
         run_cmd(ssh_client, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"')
