@@ -299,6 +299,8 @@ proxy=http://127.0.0.1:8080
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
                 log.debug(line)
+        run_cmd(ssh_client, 'sudo yum remove -y kernel-debug')
+        run_cmd(ssh_client, 'sudo yum remove -y kernel-debug-core kernel-debug-modules')
         run_cmd(ssh_client, 'sudo rm -rf /etc/yum.repos.d/ami.repo')
         run_cmd(ssh_client, 'sudo yum repolist enabled')
         run_cmd(ssh_client, 'sudo yum-config-manager --disable rh*')
