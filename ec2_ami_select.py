@@ -84,7 +84,7 @@ def get_by_kernel():
 if __name__ == '__main__':
     ARG_PARSER = argparse.ArgumentParser(
         description="Check RHEL version by giving kernel version or compose id. \
-            eg.  python check_rhel_version.py -k $kernel -f $datafile")
+            eg.  python ec2_ami_select.py -k $kernel -f $datafile")
     ARG_PARSER.add_argument('-d', dest='is_debug', action='store_true',
                             help='run in debug mode', required=False)
     ARG_PARSER.add_argument('-k', dest='kernel', action='store', default=None,
