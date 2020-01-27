@@ -386,10 +386,13 @@ proxy=http://127.0.0.1:8080
         NoReboot=False
     )
     while True:
-        if image.state == 'available':
-            break
-        image.reload()
-        time.sleep(5)
+        try:
+            if image.state == 'available':
+                break
+            image.reload()
+            time.sleep(5)
+        except ClientError as err:
+            log.info('%s', err)
     log.info("Terminate instance %s" % vm.id)
     vm.terminate()
     log.info("New AMI:%s" % image.id)
