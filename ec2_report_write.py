@@ -75,6 +75,7 @@ class Report(DB_BASE):
     pass_rate = Column(Integer)
     test_date = Column(String)
     comments = Column(String)
+    platform = Column(String)
     sqlite_autoincrement = True
 
 def get_ami_id():
@@ -186,6 +187,7 @@ def report_writer():
         report.report_url = ARGS.report_url
         report.branch_name = ARGS.branch_name
         report.comments = ARGS.comments
+        report.platform = 'aws'
         report.cases_pass = instances_sub_report[instance_type]['cases_pass']
         report.cases_fail = instances_sub_report[instance_type]['cases_fail']
         report.cases_cancel = instances_sub_report[instance_type]['cases_cancel']

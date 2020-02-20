@@ -42,7 +42,7 @@ json_file = '%s/images.json' % args.dir
 if os.path.exists(json_file):
     os.unlink(json_file)
     log.debug('Removed exists %s', json_file)
-with open(json_file, 'wt') as fh:
+with open(json_file, 'wb') as fh:
     fh.write(s.read())
 log.info('Data saved to %s', json_file)
 with open(json_file, 'r') as f:
