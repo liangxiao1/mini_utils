@@ -57,7 +57,7 @@ class Report(DB_BASE):
     '''
     The table's schema definication.
     '''
-    __tablename__ = 'report'
+    __tablename__ = 'e_c2__report'
     log_id = Column(Integer, primary_key=True)
     ami_id = Column(String)
     instance_type = Column(String)
