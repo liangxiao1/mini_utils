@@ -25,7 +25,6 @@ except ImportError:
     from yaml import Loader, Dumper
 #/etc/dva.yaml
 credential_file = 'data/dva_key.yaml'
-final_file = '/tmp/dva.yaml'
 
 parser = argparse.ArgumentParser(
     'Generate configuration for dva running in /etc/dva.yaml')
@@ -39,6 +38,8 @@ parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="da
                     help='awscli token file', required=True)
 parser.add_argument('--target', dest='target', action='store', default="aws",
                     help='optional, can be aws or aws-china or aws-us-gov', required=False)
+parser.add_argument('--dir', dest='dir', action='store',
+                    help='dir to save file', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true', default=False,
                     help='Run in debug mode', required=False)
 args = parser.parse_args()
@@ -50,6 +51,7 @@ else:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
 credential_file = args.tokenfile
+final_file = '%s/dva.yaml' % args.dir
 credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
 
 if not os.path.exists(credential_file):
