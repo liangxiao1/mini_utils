@@ -58,7 +58,6 @@ if not os.path.exists(credential_file):
     sys.exit(1)
 with open(credential_file,'r') as fh:
      keys_data = load(fh, Loader=Loader)
-log.info(keys_data)
 subnet_info = ''
 ssh_key_info = ''
 keyname = 'virtqe_s1'
