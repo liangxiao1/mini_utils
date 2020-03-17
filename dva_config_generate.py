@@ -90,8 +90,6 @@ for region in region_list:
 ssh_key_str = ''
 subnet_str = ''
 for region in regionids:
-    if 'us-west-2' not in region:
-        continue
     client = boto3.client(
     'ec2',
     aws_access_key_id=ACCESS_KEY,
