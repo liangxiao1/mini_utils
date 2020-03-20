@@ -38,7 +38,13 @@ def get_by_compose():
     '''
     get ami_id by parse compose id
     '''
-    branch_name = re.findall(BRANCH_REGEX, ARGS.compose)[0]
+    try:
+        branch_name = re.findall(BRANCH_REGEX, ARGS.compose)[0]
+    except IndexError:
+        if ARGS.compose.startswith('RHEL-7'):
+            branch_name = 'RHEL-7-latest'
+        else:
+            branch_name = 'RHEL-8-latest'
     LOG.debug('Your branch_name:%s', branch_name)
     try:
         if ARGS.arch == 'aarch64':
