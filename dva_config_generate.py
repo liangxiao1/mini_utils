@@ -96,7 +96,13 @@ for region in regionids:
     aws_secret_access_key=SECRET_KEY,
     region_name=region,
     )
-    subnet_id = client.describe_subnets()['Subnets'][0]['SubnetId']
+    subnet_id = None
+    subnets = client.describe_subnets()['Subnets']
+    for subnet in subnets:
+        if subnet['MapPublicIpOnLaunch']:
+            subnet_id = subnet['SubnetId']
+    if subnet_id is None:
+        log.info("No ipv4 pub enabed subnets found in region %s", region)
     log.info("Found existing subnet: %s", subnet_id)
     ssh_key_str += '      %s: [%s,%s]\n' % (region, keyname, args.sshkeyfile)
     subnet_str += '    %s: [%s]\n' % (region, subnet_id)
