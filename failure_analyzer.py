@@ -113,13 +113,13 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
             LOG.debug("Key final rate: %s", key_rate_list)
             if len(key_rate_list) > 0:
                 ave_rate = sum(key_rate_list)/len(key_rate_list)
-                if ave_rate > tmp_ave_rate:
+                if ave_rate > tmp_ave_rate and ave_rate > bottom_rate:
                     tmp_ave_rate = ave_rate
                     tmp_failure_ids.append(bug.id)
     if tmp_ave_rate > bottom_rate:
-        LOG.debug("Find such failure in DB, continue to double check details......")
+        LOG.info("Find similar failure, continue to check details...... %s", tmp_failure_ids)
     else:
-        LOG.info("No similar failure found!")
+        LOG.info("No similar failure found in keywords!")
         return
     tmp_ave_rate = 0
     final_failure_id = None
@@ -142,15 +142,15 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
                     tmp_ave_rate = ave_rate
                     final_failure_id = bug.id
     if tmp_ave_rate > bottom_rate:
-        LOG.debug("Find such failure in DB")
+        LOG.info("Check similar failure details: %s rate: %s", final_failure_id, tmp_ave_rate )
     else:
-        LOG.info("No similar failure found!")
+        LOG.info("No similar failure found in details!")
         return
     for bug in session.query(Bugs).order_by(Bugs.id):
         if final_failure_id == bug.id:
             failure_type = str(bug.failure_type)
             failure_status = str(bug.failure_status)
-            if 'product_bug' in failure_type and bug.case_name in case_name:
+            if 'product_bug' in failure_type:
                 msg = ''
                 if 'blocker' in failure_status:
                     msg = 'blocker'
