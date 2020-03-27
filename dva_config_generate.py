@@ -103,10 +103,10 @@ for region in regionids:
             subnet_id = subnet['SubnetId']
     if subnet_id is None:
         log.info("No ipv4 pub enabed subnets found in region %s", region)
-    log.info("Found existing subnet: %s", subnet_id)
+    log.info("Found existing subnet: %s in region %s", subnet_id, region)
     ssh_key_str += '      %s: [%s,%s]\n' % (region, keyname, args.sshkeyfile)
     subnet_str += '    %s: [%s]\n' % (region, subnet_id)
-    log.info('check %s key existing status', keyname)
+    log.info('check %s key existing status in %s', keyname, region)
     pubkeyfile = args.pubkeyfile
     if not os.path.exists(pubkeyfile):
         log.info("%s not found!", pubkeyfile)

@@ -123,6 +123,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
         return
     tmp_ave_rate = 0
     final_failure_id = None
+    final_failure_ids = {}
     for bug in session.query(Bugs).order_by(Bugs.id):
         for tmp_failure_id in tmp_failure_ids:
             if tmp_failure_id == bug.id:
@@ -138,9 +139,16 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
                             debug_rate_list.append(heapq.nlargest(1,tmp_list)[0])
                     LOG.debug("Final rate: %s", debug_rate_list)
                     ave_rate = sum(debug_rate_list)/len(debug_rate_list)
-                if ave_rate > tmp_ave_rate:
+                if ave_rate > tmp_ave_rate and ave_rate > bottom_rate:
                     tmp_ave_rate = ave_rate
                     final_failure_id = bug.id
+                    final_failure_ids[bug.id] = ave_rate
+    if len(final_failure_ids) > 0:
+        LOG.debug(final_failure_ids)
+        final_failure_ids_list = sorted(final_failure_ids.items(), key = lambda kw:(kw[1], kw[0]))
+        LOG.debug(final_failure_ids_list)
+        final_failure_id = final_failure_ids_list[-1][0]
+        tmp_ave_rate = final_failure_ids_list[-1][1]
     if tmp_ave_rate > bottom_rate:
         LOG.info("Check similar failure details: %s rate: %s", final_failure_id, tmp_ave_rate )
     else:
