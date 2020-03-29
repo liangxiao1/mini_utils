@@ -1,0 +1,12 @@
+[Unit]
+Description=Check jenkins configuration
+After=NetworkManager-wait-online.service
+
+[Service]
+User=root
+Group=root
+ExecStart=/usr/bin/jenkins_check.py
+TimeoutStartSec=120s
+
+[Install]
+WantedBy=sysinit.target
