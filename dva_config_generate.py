@@ -55,7 +55,7 @@ final_file = '%s/dva.yaml' % args.dir
 credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
 
 def vpc_check(vpcid, region):
-    ec2 = boto3.resource('ec2', region_name=region)
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
     try:
         vpc = ec2.Vpc(vpcid)
         log.info("vpc init %s", vpcid)
@@ -74,7 +74,7 @@ def vpc_check(vpcid, region):
             log.info("No default named security group")
             return False
     except Exception as error:
-        log.info("default sg get error")
+        log.info("default sg get error: %s", str(error))
         return False
     try:
         sg = ec2.SecurityGroup(sg.id)
