@@ -46,7 +46,7 @@ def update_location():
     #e = Element('jenkinsUrl')
     log.info(e.text)
     if local_ip not in e.text:     
-        e.text = 'http://%s:9090/' % local_ip
+        e.text = 'http://%s:8080/' % local_ip
         doc.write(location_file,xml_declaration=True)
         log.info("Updated jenkins url to %s", e.text )
         cmd = 'systemctl restart jenkins'
