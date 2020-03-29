@@ -54,6 +54,43 @@ credential_file = args.tokenfile
 final_file = '%s/dva.yaml' % args.dir
 credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
 
+def vpc_check(vpcid, region):
+    ec2 = boto3.resource('ec2', region_name=region)
+    try:
+        vpc = ec2.Vpc(vpcid)
+        log.info("vpc init %s", vpcid)
+    except Exception as error:
+        log.info("vpc init error %s, %s", vpci, str(error))
+        return False
+    try:
+        sgs = vpc.security_groups.all()
+        sg = None
+        for i in sgs:
+            log.debug("sg name %s", i.group_name)
+            if "default" in i.group_name:
+                sg = i
+                break
+        if sg == None:
+            log.info("No default named security group")
+            return False
+    except Exception as error:
+        log.info("default sg get error")
+        return False
+    try:
+        sg = ec2.SecurityGroup(sg.id)
+        ips = sg.ip_permissions
+        for ip in ips:
+            ip_ranges = ip['IpRanges']
+            log.info(ip_ranges)
+            for ip_range in ip_ranges:
+                if '0.0.0.0/0' in ip_range['CidrIp']:
+                    log.info("vpc check pass!")
+                    return True
+        return False
+    except Exception as error:
+        log.info("sg init error %s",sg.id)
+        return False
+
 if not os.path.exists(credential_file):
     log.error("%s not found in /etc, please create it and add your key into it as the following format, multilines support if have" % credential_file)
     log.info(credential_file_format)
@@ -100,7 +137,10 @@ for region in regionids:
     subnets = client.describe_subnets()['Subnets']
     for subnet in subnets:
         if subnet['MapPublicIpOnLaunch']:
-            subnet_id = subnet['SubnetId']
+            vpc_id = subnet['VpcId']
+            if vpc_check(vpc_id, region):
+                subnet_id = subnet['SubnetId']
+                break
     if subnet_id is None:
         log.info("No ipv4 pub enabed subnets found in region %s", region)
     log.info("Found existing subnet: %s in region %s", subnet_id, region)
