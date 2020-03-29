@@ -21,6 +21,21 @@ get_token(){
     read DEV_ACCESS_KEY
     echo "aws secrete key:"
     read DEV_SECRETE_KEY
+    if [[ $USGOV_ACCESS_KEY != "" && $USGOV_SECRETE_KEY != "" || $CHINA_ACCESS_KEY != "" && $CHINA_SECRETE_KEY != "" || $DEV_ACCESS_KEY != "" && $DEV_SECRETE_KEY != "" ]]; then
+        while true; do
+            echo "subscription username:"
+            read SUBSCRIPTION_USERNAME
+            echo "subscription password:"
+            read SUBSCRIPTION_PASSWORD
+            if [[ $SUBSCRIPTION_USERNAME == "" && $SUBSCRIPTION_PASSWORD == "" ]];then
+                echo "Both subscription username and password cannot be empty"
+            else
+                echo "SUBSCRIPTION_USERNAME=$SUBSCRIPTION_USERNAME" >> $token_file
+                echo "SUBSCRIPTION_PASSWORD=$SUBSCRIPTION_PASSWORD" >> $token_file
+                break
+            fi
+        done
+    fi
     if [[ $USGOV_ACCESS_KEY != "" && $USGOV_SECRETE_KEY != "" ]];then
         echo "USGOV_ACCESS_KEY=$USGOV_ACCESS_KEY" >> $token_file
         echo "USGOV_SECRETE_KEY=$USGOV_SECRETE_KEY" >> $token_file
