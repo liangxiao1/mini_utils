@@ -55,6 +55,9 @@ final_file = '%s/dva.yaml' % args.dir
 credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
 
 def vpc_check(vpcid, region):
+    '''
+    check whether the vpc's default security group allow ssh connection
+    '''
     ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
     try:
         vpc = ec2.Vpc(vpcid)
@@ -90,6 +93,254 @@ def vpc_check(vpcid, region):
     except Exception as error:
         log.info("sg init error %s",sg.id)
         return False
+
+def igw_create(client, vpcid):
+    '''
+    create a new igw and attach to vpc
+    '''
+
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+    try:
+        igw_new = client.create_internet_gateway(
+            DryRun=False
+        )
+        igwid = igw_new['InternetGateway']['InternetGatewayId']
+        log.info("New igw created %s", igwid)
+        igw = ec2.InternetGateway(igwid)
+        igw.create_tags(
+            DryRun=False,
+            Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': keyname
+                },
+            ]
+        )
+        igw.attach_to_vpc(
+            DryRun=False,
+            VpcId=vpcid
+        )
+        return igw
+    except Exception as err:
+        if 'Resource.AlreadyAssociated' in str(err):
+            return igw
+        log.info(str(err))
+        return None
+
+def rt_update(client, vpc, igw):
+    '''
+    update default route table
+    '''
+
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+    try:
+        rts = vpc.route_tables.all()
+        for i in rts:
+            for x in i.associations_attribute:
+                if x['Main']:
+                    log.info("found route table, %s", i.id)
+                    rt = i
+        #rt = vpc.create_route_table(
+        #    DryRun=False,
+        #
+        #)
+        #log.info("New route table created %s", rt.id)
+        log.info("Update route table %s", rt.id)
+        rt.create_tags(
+            DryRun=False,
+            Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': keyname
+                },
+            ]
+        )
+        log.info("tag added")
+        route = rt.create_route(
+            DestinationCidrBlock='0.0.0.0/0',
+            DryRun=False,
+            GatewayId=igw.id,
+        )
+
+        return rt
+    except Exception as err:
+        log.info(str(err))
+        return None
+
+def sg_update(client, vpc, igw):
+    '''
+    update default security group
+    '''
+
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+
+    try:
+        sgs = vpc.security_groups.all()
+        sg = None
+        for i in sgs:
+            log.debug("sg name %s", i.group_name)
+            if "default" in i.group_name:
+                sg = i
+                break
+        if sg == None:
+            log.info("No default named security group")
+            return None
+    except Exception as error:
+        log.info("default sg get error: %s", str(error))
+        return None
+    try:
+        #sg = vpc.create_security_group(
+        #    Description='virtqe s1',
+        #    GroupName='default',
+        #    DryRun=True
+        #)
+        #log.info("New security group created %s", sg.id)
+        sg.create_tags(
+            DryRun=False,
+            Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': keyname
+                },
+            ]
+        )
+        log.info("tag added")
+        response = sg.authorize_ingress(
+            IpPermissions=[
+                {
+                    "PrefixListIds": [],
+                    "FromPort": 22,
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "ToPort": 22,
+                    "IpProtocol": "tcp",
+                    "UserIdGroupPairs": [],
+                    "Ipv6Ranges": []
+                },
+                {
+                    "PrefixListIds": [],
+                    "FromPort": -1,
+                    "IpRanges": [],
+                    "ToPort": -1,
+                    "IpProtocol": "icmpv6",
+                    "UserIdGroupPairs": [],
+                    "Ipv6Ranges": [
+                        {
+                            "CidrIpv6": "::/0"
+                        }
+                    ]
+                },
+                {
+                    "PrefixListIds": [],
+                    "FromPort": -1,
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "ToPort": -1,
+                    "IpProtocol": "icmp",
+                    "UserIdGroupPairs": [],
+                    "Ipv6Ranges": []
+                }
+            ]
+        )
+        log.info("Enabled ssh port created %s", sg.id)
+
+        return sg
+    except Exception as err:
+        log.info(str(err))
+        return None
+
+def subnet_create(client, vpc):
+    '''
+    create a new subnet
+    '''
+
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+    try:
+        subnet = vpc.create_subnet(
+            CidrBlock='192.111.1.0/24',
+            DryRun=False
+        )
+
+        log.info("New subnet created %s", subnet.id)
+        subnet.create_tags(
+            DryRun=False,
+            Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': keyname
+                },
+            ]
+        )
+        log.info("tag added")
+        client.modify_subnet_attribute(
+            MapPublicIpOnLaunch={
+                'Value': True
+            },
+            SubnetId=subnet.id
+        )
+        log.info("enabled ipv4 on launch")
+        return subnet
+    except Exception as err:
+        log.info(str(err))
+        return None
+
+def vpc_create(client, region):
+    '''
+    create a new vpc for test running
+    '''
+    log.info("create a new vpc for test running")
+    try:
+        vpc_new = client.create_vpc(
+            CidrBlock='192.111.0.0/16',
+            AmazonProvidedIpv6CidrBlock=True,
+            DryRun=False,
+            InstanceTenancy='default'
+        )
+    except Exception as err:
+        log.info("Failed to create vpc %s", str(err))
+    vpcid = vpc_new['Vpc']['VpcId']
+    log.info("New vpc created %s", vpcid)
+    ec2 = boto3.resource('ec2', region_name=region,  aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+    try:
+        vpc = ec2.Vpc(vpcid)
+        log.info("vpc init %s", vpcid)
+        tag = vpc.create_tags(
+            DryRun=False,
+            Tags=[
+                {
+                    'Key': 'Name',
+                    'Value': keyname
+                },
+            ]
+        )
+        log.info("added tag to vpc: %s", keyname)
+        vpc.modify_attribute(
+            EnableDnsHostnames={
+                'Value': True
+            }
+        )
+        log.info("Enabled dns support")
+    except Exception as error:
+        log.info(str(error))
+        return False
+    igw = igw_create(client, vpcid)
+    if igw == None:
+        return vpc
+    rt = rt_update(client, vpc, igw)
+    if rt == None:
+        return vpc
+    subnet = subnet_create(client, vpc)
+    if subnet == None:
+        return vpc
+    sg = sg_update(client, vpc, igw)
+    if sg == None:
+        return vpc
 
 if not os.path.exists(credential_file):
     log.error("%s not found in /etc, please create it and add your key into it as the following format, multilines support if have" % credential_file)
@@ -143,6 +394,16 @@ for region in regionids:
                 break
     if subnet_id is None:
         log.info("No ipv4 pub enabed subnets found in region %s", region)
+        vpc = vpc_create(client, region)
+        subnets = client.describe_subnets()['Subnets']
+        for subnet in subnets:
+            if subnet['MapPublicIpOnLaunch']:
+                vpc_id = subnet['VpcId']
+                if vpc_check(vpc_id, region):
+                    subnet_id = subnet['SubnetId']
+                    break
+        if subnet_id is None:
+            log.info("Create failed in region %s", region)
     log.info("Found existing subnet: %s in region %s", subnet_id, region)
     ssh_key_str += '      %s: [%s,%s]\n' % (region, keyname, args.sshkeyfile)
     subnet_str += '    %s: [%s]\n' % (region, subnet_id)
