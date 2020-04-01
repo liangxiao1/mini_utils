@@ -26,7 +26,7 @@ import paramiko
 import wget
 
 import time
-
+import tempfile
 import pdb
 import string
 
@@ -285,9 +285,7 @@ enabled=1
 gpgcheck=0
 proxy=http://127.0.0.1:8080
         ''')
-        tmp_repo_file = '/tmp/ami.repo'
-        if os.path.exists(tmp_repo_file):
-            os.unlink(tmp_repo_file)
+        fh, tmp_repo_file = tempfile.mkstemp(suffix='_ami.repo',  dir='/tmp', text=False)
         id = 0
         with open(tmp_repo_file, 'a') as fh:
             for repo in args.repo_url.split(','):
@@ -315,6 +313,10 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
         run_cmd(ssh_client, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"')
         run_cmd(ssh_client, 'sudo bash -c "echo "timeout=1800" >> /etc/yum.conf"')
+        if os.path.exists(tmp_repo_file):
+            os.unlink(tmp_repo_file)
+            log.info("delete tempfile %s", tmp_repo_file)
+
         for i in range(1,20):
             ret_val = run_cmd(ssh_client, 'sudo yum update -y')
             if ret_val > 0:
@@ -327,10 +329,10 @@ proxy=http://127.0.0.1:8080
             vm.terminate()
             sys.exit(ret_val)
     if args.pkgs is not None:
-        for i in range(1,10):
+        for i in range(1,20):
             ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
             if ret_val > 0:
-                log.error("Failed to update system, try again! max:10 now:%s" % i)
+                log.error("Failed to update system, try again! max:20 now:%s" % i)
                 time.sleep(5)
                 continue
             break
