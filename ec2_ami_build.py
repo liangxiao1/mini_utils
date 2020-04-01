@@ -315,10 +315,10 @@ proxy=http://127.0.0.1:8080
         run_cmd(ssh_client, 'sudo  rm -rf /var/log/cloud-init-output.log')
         run_cmd(ssh_client, 'sudo bash -c "echo "minrate=200" >> /etc/yum.conf"')
         run_cmd(ssh_client, 'sudo bash -c "echo "timeout=1800" >> /etc/yum.conf"')
-        for i in range(1,10):
+        for i in range(1,20):
             ret_val = run_cmd(ssh_client, 'sudo yum update -y')
             if ret_val > 0:
-                log.error("Failed to update system, try again! max:10 now:%s" % i)
+                log.error("Failed to update system, try again! max:20 now:%s" % i)
                 time.sleep(5)
                 continue
             break
