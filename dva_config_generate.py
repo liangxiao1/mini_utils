@@ -357,6 +357,7 @@ subscription_username = keys_data[args.target][2]
 subscription_password = keys_data[args.target][3]
 
 default_regions = [ "cn-northwest-1", "us-gov-west-1", "us-west-2"]
+region_list = None
 for region in default_regions:
     try:
         client = boto3.client(
@@ -373,6 +374,9 @@ for region in default_regions:
         continue
 #region_list = client.describe_regions()['Regions']
 regionids = []
+if region_list == None:
+    log.info("Cannot access %s", args.target )
+    sys.exit(1)
 for region in region_list:
     regionids.append(region['RegionName'])
 ssh_key_str = ''
