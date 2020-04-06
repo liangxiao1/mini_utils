@@ -3,6 +3,9 @@
 github : https://github.com/liangxiao1/mini_utils
 
 This tool is for cleaning up amis and relative snapshots together.
+awscli deregister-image command only deregister image and do not delete
+snapshot, the snapshots created when built AMI is using disk resource.
+So clean them together to release resource.
 
 '''
 import boto3

@@ -217,7 +217,7 @@ else:
     logging.basicConfig(level=logging.INFO, format=FORMAT)
 
 
-def main():
+def create_ami():
     signal.signal(signal.SIGHUP, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGQUIT, sig_handler)
@@ -277,14 +277,23 @@ def main():
         cmd = 'uname -a'
         run_cmd(ssh_client, cmd)
     if args.repo_url is not None:
-        repo_temp = string.Template('''
+        if args.proxy_url is not None:
+            repo_temp = string.Template('''
 [repo$id]
 name=repo$id
 baseurl = $repo_url
 enabled=1
 gpgcheck=0
 proxy=http://127.0.0.1:8080
-        ''')
+            ''')
+        else:
+            repo_temp = string.Template('''
+[repo$id]
+name=repo$id
+baseurl = $repo_url
+enabled=1
+gpgcheck=0
+            ''')
         fh, tmp_repo_file = tempfile.mkstemp(suffix='_ami.repo',  dir='/tmp', text=False)
         id = 0
         with open(tmp_repo_file, 'a') as fh:
@@ -402,4 +411,4 @@ proxy=http://127.0.0.1:8080
 
 
 if __name__ == '__main__':
-    main()
+    create_ami()
