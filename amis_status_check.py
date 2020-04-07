@@ -8,10 +8,10 @@ This tool is for checking amis status in all regions and check whether they are 
 import json
 import os
 import sys
-if sys.version.startswith('2.7'):
-    print('Only support run in python3')
-    sys.exit(1)
-import urllib.request as request
+if sys.version.startswith('2.'):
+    import urllib2 as request
+else:
+    import urllib.request as request
 import logging
 import argparse
 import boto3
