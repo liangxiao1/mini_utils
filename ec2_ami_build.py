@@ -480,8 +480,8 @@ def run_cmd(ssh_client, cmd, timeout=1800):
 
 
 parser = argparse.ArgumentParser(
-    description="Generate instance type yaml file for avocado-cloud test. \
-    eg.  python ec2_ami_build.py -c --ami-id xxxx --key_name xxxx --security_group_ids xxxx --subnet_id xxxx --region us-west-2 ")
+    description="Create new ami from existing AMIs \
+    eg.  python ec2_ami_build.py -c --ami-id xxxx --key_name xxxx  --keyfile xxxx --region us-west-2 --pkgs xxxx")
 
 parser.add_argument('-d', dest='is_debug', action='store_true',
                     help='run in debug mode', required=False)
