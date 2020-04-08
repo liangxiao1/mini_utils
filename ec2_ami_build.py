@@ -92,15 +92,322 @@ def reverse_forward_tunnel(server_port, remote_host, remote_port, transport):
 
 class EC2VM:
     def __init__(self):
-        self.ec2 = boto3.resource('ec2')
+        self.ec2 = boto3.resource('ec2',region_name=args.region)
 
         self.ami_id = args.ami_id
         self.key_name = args.key_name
         self.security_group_ids = args.security_group_ids
         self.subnet_id = args.subnet_id
         self.instance_type = args.instance_type
-        self.zone = args.zone
+        self.region = args.region
         self.vm = None
+    def vpc_check(self, vpcid, region):
+        '''
+        check whether the vpc's default security group allow ssh connection
+        '''
+        ec2 = boto3.resource('ec2', region_name=region)
+        try:
+            vpc = ec2.Vpc(vpcid)
+            log.info("vpc init %s", vpcid)
+        except Exception as error:
+            log.info("vpc init error %s, %s", vpci, str(error))
+            return False
+        try:
+            sgs = vpc.security_groups.all()
+        except Exception as error:
+            log.info("default sg get error: %s", str(error))
+            return False
+        for sg in sgs:
+            try:
+                sg = ec2.SecurityGroup(sg.id)
+                ips = sg.ip_permissions
+                for ip in ips:
+                    ip_ranges = ip['IpRanges']
+                    log.info(ip_ranges)
+                    for ip_range in ip_ranges:
+                        if '0.0.0.0/0' in ip_range['CidrIp']:
+                            log.info("find security group: %s vpc check pass!", sg.id)
+                            self.security_group_ids = sg.id
+                            return True
+                log.info("Security group not found, please check manually")
+                return False
+            except Exception as error:
+                log.info("sg init error %s",sg.id)
+                return False
+    def find_subnet(self):
+        client = boto3.client(
+        'ec2',
+        region_name=self.region
+        )
+        subnet_id = None
+        subnets = client.describe_subnets()['Subnets']
+        for subnet in subnets:
+            if subnet['MapPublicIpOnLaunch']:
+                vpc_id = subnet['VpcId']
+                if self.vpc_check(vpc_id, self.region):
+                    self.subnet_id = subnet['SubnetId']
+                    break
+        if self.subnet_id is None:
+            log.info("No ipv4 pub enabed subnets found in region %s", self.region)
+            vpc = self.vpc_create(client, self.region)
+            subnets = client.describe_subnets()['Subnets']
+            for subnet in subnets:
+                if subnet['MapPublicIpOnLaunch']:
+                    vpc_id = subnet['VpcId']
+                    if self.vpc_check(vpc_id, self.region):
+                        self.subnet_id = subnet['SubnetId']
+                        break
+        if self.subnet_id is None:
+            log.info("No suitale subnet found in %s, please check manually %s", self.region)
+        log.info("Found existing subnet: %s in region %s", self.subnet_id, self.region)
+
+    def igw_create(self, client, vpcid):
+        '''
+        create a new igw and attach to vpc
+        '''
+
+        ec2 = boto3.resource('ec2', region_name=self.region)
+        try:
+            igw_new = client.create_internet_gateway(
+                DryRun=False
+            )
+            igwid = igw_new['InternetGateway']['InternetGatewayId']
+            log.info("New igw created %s", igwid)
+            igw = ec2.InternetGateway(igwid)
+            igw.create_tags(
+                DryRun=False,
+                Tags=[
+                    {
+                        'Key': 'Name',
+                        'Value': args.tag
+                    },
+                ]
+            )
+            igw.attach_to_vpc(
+                DryRun=False,
+                VpcId=vpcid
+            )
+            return igw
+        except Exception as err:
+            if 'Resource.AlreadyAssociated' in str(err):
+                return igw
+            log.info(str(err))
+            return None
+
+    def rt_update(self, client, vpc, igw):
+        '''
+        update default route table
+        '''
+
+        ec2 = boto3.resource('ec2', region_name=self.region)
+        try:
+            rts = vpc.route_tables.all()
+            for i in rts:
+                for x in i.associations_attribute:
+                    if x['Main']:
+                        log.info("found route table, %s", i.id)
+                        rt = i
+            #rt = vpc.create_route_table(
+            #    DryRun=False,
+            #
+            #)
+            #log.info("New route table created %s", rt.id)
+            log.info("Update route table %s", rt.id)
+            rt.create_tags(
+                DryRun=False,
+                Tags=[
+                    {
+                        'Key': 'Name',
+                        'Value': args.tag
+                    },
+                ]
+            )
+            log.info("tag added")
+            route = rt.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                DryRun=False,
+                GatewayId=igw.id,
+            )
+
+            return rt
+        except Exception as err:
+            log.info(str(err))
+            return None
+
+    def sg_update(self, client, vpc, igw):
+        '''
+        update default security group
+        '''
+
+        ec2 = boto3.resource('ec2', region_name=self.region)
+
+        try:
+            sgs = vpc.security_groups.all()
+            sg = None
+            for i in sgs:
+                log.debug("sg name %s", i.group_name)
+                if "default" in i.group_name:
+                    sg = i
+                    break
+            if sg == None:
+                log.info("No default named security group")
+                return None
+        except Exception as error:
+            log.info("default sg get error: %s", str(error))
+            return None
+        try:
+            #sg = vpc.create_security_group(
+            #    Description='virtqe s1',
+            #    GroupName='default',
+            #    DryRun=True
+            #)
+            #log.info("New security group created %s", sg.id)
+            sg.create_tags(
+                DryRun=False,
+                Tags=[
+                    {
+                        'Key': 'Name',
+                        'Value': args.tag
+                    },
+                ]
+            )
+            log.info("tag added")
+            response = sg.authorize_ingress(
+                IpPermissions=[
+                    {
+                        "PrefixListIds": [],
+                        "FromPort": 22,
+                        "IpRanges": [
+                            {
+                                "CidrIp": "0.0.0.0/0"
+                            }
+                        ],
+                        "ToPort": 22,
+                        "IpProtocol": "tcp",
+                        "UserIdGroupPairs": [],
+                        "Ipv6Ranges": []
+                    },
+                    {
+                        "PrefixListIds": [],
+                        "FromPort": -1,
+                        "IpRanges": [],
+                        "ToPort": -1,
+                        "IpProtocol": "icmpv6",
+                        "UserIdGroupPairs": [],
+                        "Ipv6Ranges": [
+                            {
+                                "CidrIpv6": "::/0"
+                            }
+                        ]
+                    },
+                    {
+                        "PrefixListIds": [],
+                        "FromPort": -1,
+                        "IpRanges": [
+                            {
+                                "CidrIp": "0.0.0.0/0"
+                            }
+                        ],
+                        "ToPort": -1,
+                        "IpProtocol": "icmp",
+                        "UserIdGroupPairs": [],
+                        "Ipv6Ranges": []
+                    }
+                ]
+            )
+            log.info("Enabled ssh port created %s", sg.id)
+
+            return sg
+        except Exception as err:
+            log.info(str(err))
+            return None
+
+    def subnet_create(self, client, vpc):
+        '''
+        create a new subnet
+        '''
+
+        ec2 = boto3.resource('ec2', region_name=self.region)
+        try:
+            subnet = vpc.create_subnet(
+                CidrBlock='192.111.1.0/24',
+                DryRun=False
+            )
+
+            log.info("New subnet created %s", subnet.id)
+            subnet.create_tags(
+                DryRun=False,
+                Tags=[
+                    {
+                        'Key': 'Name',
+                        'Value': args.tag
+                    },
+                ]
+            )
+            log.info("tag added")
+            client.modify_subnet_attribute(
+                MapPublicIpOnLaunch={
+                    'Value': True
+                },
+                SubnetId=subnet.id
+            )
+            log.info("enabled ipv4 on launch")
+            return subnet
+        except Exception as err:
+            log.info(str(err))
+            return None
+
+    def vpc_create(self, client, region):
+        '''
+        create a new vpc for test running
+        '''
+        log.info("create a new vpc for test running")
+        try:
+            vpc_new = client.create_vpc(
+                CidrBlock='192.111.0.0/16',
+                AmazonProvidedIpv6CidrBlock=True,
+                DryRun=False,
+                InstanceTenancy='default'
+            )
+        except Exception as err:
+            log.info("Failed to create vpc %s", str(err))
+        vpcid = vpc_new['Vpc']['VpcId']
+        log.info("New vpc created %s", vpcid)
+        ec2 = boto3.resource('ec2', region_name=region)
+        try:
+            vpc = ec2.Vpc(vpcid)
+            log.info("vpc init %s", vpcid)
+            tag = vpc.create_tags(
+                DryRun=False,
+                Tags=[
+                    {
+                        'Key': 'Name',
+                        'Value': args.tag
+                    },
+                ]
+            )
+            log.info("added tag to vpc: %s", args.tag)
+            vpc.modify_attribute(
+                EnableDnsHostnames={
+                    'Value': True
+                }
+            )
+            log.info("Enabled dns support")
+        except Exception as error:
+            log.info(str(error))
+            return False
+        igw = self.igw_create(client, vpcid)
+        if igw == None:
+            return vpc
+        rt = self.rt_update(client, vpc, igw)
+        if rt == None:
+            return vpc
+        subnet = self.subnet_create(client, vpc)
+        if subnet == None:
+            return vpc
+        sg = self.sg_update(client, vpc, igw)
+        if sg == None:
+            return vpc
 
     def create(self, wait=True):
         try:
@@ -114,9 +421,9 @@ class EC2VM:
                 SubnetId=self.subnet_id,
                 MaxCount=1,
                 MinCount=1,
-                Placement={
-                    'AvailabilityZone': self.zone,
-                },
+                #Placement={
+                #    'AvailabilityZone': self.zone,
+                #},
                 # DryRun=True,
                 TagSpecifications=[
                     {
@@ -133,9 +440,9 @@ class EC2VM:
 
         except ClientError as err:
             if 'DryRunOperation' in str(err):
-                logging.info("Can create in %s", self.zone)
+                logging.info("Can create in %s", self.region)
                 return self.vm
-            logging.error("Can not create in %s : %s", self.zone, err)
+            logging.error("Can not create in %s : %s", self.region, err)
             return None
         return self.vm
 
@@ -179,21 +486,21 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-d', dest='is_debug', action='store_true',
                     help='run in debug mode', required=False)
 parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
-                    help='base ami id', required=False)
-parser.add_argument('--user', dest='user', default=None, action='store',
-                    help='user for login', required=False)
+                    help='base ami id', required=True)
+parser.add_argument('--user', dest='user', default="ec2-user", action='store',
+                    help='user for ssh login, default is ec2-user', required=False)
 parser.add_argument('--keyfile', dest='keyfile', default=None, action='store',
-                    help='keyfile for login', required=False)
+                    help='keyfile for ssh login', required=True)
 parser.add_argument('--key_name', dest='key_name', default=None, action='store',
-                    help='key name for create instance', required=False)
+                    help='key pairs name for create instance', required=True)
 parser.add_argument('--security_group_ids', dest='security_group_ids', default=None, action='store',
-                    help='security_group_ids', required=False)
+                    help='security_group_ids, will auto find one if not specified', required=False)
 parser.add_argument('--subnet_id', dest='subnet_id', default=None, action='store',
-                    help='subnet_id', required=False)
+                    help='subnet_id, will auto find one if not specified', required=False)
 parser.add_argument('--instance_type', dest='instance_type', default='t2.large', action='store',
                     help='specify instance type, default is t2.large', required=False)
-parser.add_argument('--zone', dest='zone', default=None, action='store',
-                    help='which zone you are using ', required=False)
+parser.add_argument('--region', dest='region', default="us-west-2", action='store',
+                    help='which zone you are using, default is us-west-2 ', required=True)
 parser.add_argument('--timeout', dest='timeout', default=None, action='store',
                     help='bare metal can set to 8hrs each, others can be 7200 each, default it 28800s', required=False)
 parser.add_argument('--tag', dest='tag', default=None, action='store',
@@ -223,6 +530,12 @@ def create_ami():
     signal.signal(signal.SIGQUIT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
     VM = EC2VM()
+    if args.subnet_id is None:
+        VM.find_subnet()
+    if VM.subnet_id is None:
+        sys.exit(1)
+    if VM.security_group_ids is None:
+        sys.exit(1)
     vm = VM.create()
     if vm is None:
         sys.exit(1)
