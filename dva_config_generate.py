@@ -35,7 +35,7 @@ parser.add_argument('--pubkeyfile', dest='pubkeyfile', action='store',
 parser.add_argument('--sshkeyfile', dest='sshkeyfile', action='store',
                     help='specify private ssh keyfile', required=True)
 parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="data/dva_key.yaml",
-                    help='awscli token file', required=True)
+                    help='credential file, default data/dva_key.yaml', required=False)
 parser.add_argument('--target', dest='target', action='store', default="aws",
                     help='optional, can be aws or aws-china or aws-us-gov', required=False)
 parser.add_argument('--dir', dest='dir', action='store',
@@ -343,7 +343,7 @@ def vpc_create(client, region):
         return vpc
 
 if not os.path.exists(credential_file):
-    log.error("%s not found in /etc, please create it and add your key into it as the following format, multilines support if have" % credential_file)
+    log.error("%s not found, please create it and add your key into it as the following format, multilines support if have" % credential_file)
     log.info(credential_file_format)
     sys.exit(1)
 with open(credential_file,'r') as fh:
@@ -351,32 +351,33 @@ with open(credential_file,'r') as fh:
 subnet_info = ''
 ssh_key_info = ''
 keyname = 'virtqe_s1'
-ACCESS_KEY = keys_data[args.target][0]
-SECRET_KEY = keys_data[args.target][1]
-subscription_username = keys_data[args.target][2]
-subscription_password = keys_data[args.target][3]
+try:
+    ACCESS_KEY = keys_data[args.target][0]
+    SECRET_KEY = keys_data[args.target][1]
+    subscription_username = keys_data[args.target][2]
+    subscription_password = keys_data[args.target][3]
+except KeyError:
+    log.info("%s credential not found", args.target)
+    sys.exit(1)
 
-default_regions = [ "cn-northwest-1", "us-gov-west-1", "us-west-2"]
+default_regions = {"aws-china":"cn-northwest-1","aws":"us-west-2","aws-us-gov":"us-gov-west-1"}
 region_list = None
-for region in default_regions:
-    try:
-        client = boto3.client(
-            'ec2',
-            aws_access_key_id=ACCESS_KEY,
-            aws_secret_access_key=SECRET_KEY,
-            region_name=region,
-        )
-        region_list = client.describe_regions()['Regions']
-        log.info("set default region: %s", region)
-        break
-    except ClientError as error:
-        log.info("find default region...... skip %s", region)
-        continue
+region = default_regions[args.target]
+try:
+    client = boto3.client(
+        'ec2',
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        region_name=region,
+    )
+    region_list = client.describe_regions()['Regions']
+    log.info("Successfully init %s credential in %s", args.target, region)
+except ClientError as error:
+    log.info("Failed to init %s credential in %s", args.target, region)
+    log.info("Error: %s", error)
+    sys.exit(1)
 #region_list = client.describe_regions()['Regions']
 regionids = []
-if region_list == None:
-    log.info("Cannot access %s", args.target )
-    sys.exit(1)
 for region in region_list:
     regionids.append(region['RegionName'])
 ssh_key_str = ''
