@@ -100,12 +100,12 @@ def walk_list(list_items, key_name):
         elif is_dict(item):
             walk_dict(item, key)
 
-def walk_dict(dict_items, key_name):
+def walk_dict(dict_items, key_name_org):
     '''
     walk through a dict
     '''
     for key in dict_items:
-        key_name = key_name + "_" + str(key)
+        key_name = key_name_org + "_" + str(key)
         if not is_list(dict_items[key]) and not is_dict(dict_items[key]):
             LOG.info('%s, %s, %s', key_name.upper(), key, dict_items[key])
             FINAL_DICT[key_name.upper()] = dict_items[key]
