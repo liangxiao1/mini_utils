@@ -68,7 +68,7 @@ else:
 version = s[1]['release']['version']
 if 'ATOMIC' in version.upper():
     version = version.replace('Atomic_','')
-if not str(version).startswith('6') and not str(version).startswith('7.2') and not str(version).startswith('7.3'):
+if not str(version).startswith('6') and not str(version).startswith('7.2') and not str(version).startswith('7.3') and not str(version).startswith('7.1') and not str(version).startswith('7.0'):
     cfg_tmp = string.Template('''- ami: $ami_id
   arch:
     - arch: x86_64
