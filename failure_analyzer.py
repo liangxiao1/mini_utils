@@ -2,7 +2,8 @@
 '''
 Check a failure is regression or not.
 github : https://github.com/liangxiao1/mini_utils
-
+Example:
+# python failure_analyzer.py --db_file app.db --log_file cases.log --case_name test_collect_log -a
 '''
 from __future__ import print_function
 import json
@@ -21,8 +22,6 @@ from collections import deque
 import heapq
 import math
 import pdb
-
-
 
 DB_BASE = declarative_base()
 
@@ -80,7 +79,7 @@ class Bugs(DB_BASE):
     contactor = Column(String(50),nullable=True)
     sqlite_autoincrement = True
 
-def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
+def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=False):
     DB_ENGINE = create_engine('sqlite:///%s' % db_file, echo=False) #echo=True to enable debug
     DB_SESSION = sessionmaker(bind=DB_ENGINE)
     session = DB_SESSION()
@@ -89,7 +88,12 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
     bottom_rate = 65
     tmp_failure_ids = []
     tmp_ave_rate = 0
-    for bug in session.query(Bugs).order_by(Bugs.id):
+    if is_all:
+        bugs = session.query(Bugs).order_by(Bugs.id)
+    else:
+        bugs = session.query(Bugs).filter(Bugs.failure_status.has(Bugs.failure_id!=2)).order_by(Bugs.id)
+    for bug in bugs:
+        LOG.debug("%s:%s", bug.id,bug.failure_status)
         key_rate_list = []
         LOG.debug(bug.id, bug.case_name)
         #LOG.info("##########%s",bug.identify_keywords)
@@ -124,7 +128,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
     tmp_ave_rate = 0
     final_failure_id = None
     final_failure_ids = {}
-    for bug in session.query(Bugs).order_by(Bugs.id):
+    for bug in bugs:
         for tmp_failure_id in tmp_failure_ids:
             if tmp_failure_id == bug.id:
                 for baseline in bug.identify_debuglog.split('\n'):
@@ -154,7 +158,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None):
     else:
         LOG.info("No similar failure found in details!")
         return
-    for bug in session.query(Bugs).order_by(Bugs.id):
+    for bug in bugs:
         if final_failure_id == bug.id:
             failure_type = str(bug.failure_type)
             failure_status = str(bug.failure_status)
@@ -183,6 +187,8 @@ if __name__ == "__main__":
                             help="specify log file", default=None, required=False)
     ARG_PARSER.add_argument("--case_name", dest='case_name', action='store',
                             help="specify case_name", default=None, required=False)
+    ARG_PARSER.add_argument('-a', dest='is_all', action='store_true',
+        help='optional, only open bug searched by default', required=False, default=False)
     ARGS = ARG_PARSER.parse_args()
     LOG = logging.getLogger(__name__)
     if ARGS.is_debug:
@@ -190,4 +196,4 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
-    log_analyze(db_file=ARGS.db_file, log_file=ARGS.log_file, case_name=ARGS.case_name, LOG=LOG)
+    log_analyze(db_file=ARGS.db_file, log_file=ARGS.log_file, case_name=ARGS.case_name, LOG=LOG, is_all=ARGS.is_all)
