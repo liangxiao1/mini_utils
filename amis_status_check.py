@@ -17,6 +17,32 @@ import argparse
 import boto3
 from botocore.exceptions import ClientError
 
+def check_boot(ec2_resource=None,instance_type=None,ami=None,subnet=None,region=None):
+    try:
+        vm = ec2_resource.create_instances(
+            ImageId=ami,
+            InstanceType=instance_type,
+            SubnetId=subnet,
+            MaxCount=1,
+            MinCount=1,
+            DryRun=True,
+        )[0]
+    except ClientError as err:
+        if 'DryRunOperation' in str(err):
+            log.debug("%s can create in %s", region, ami)
+            bootable = True
+        elif 'Unsupported' in str(err):
+            bootable = 'Unsupported'
+            log.debug("Can not create in %s %s: %s", region, bootable, err)
+        elif 'Elastic Network Adapter' in str(err):
+            bootable = 'FalseNoENA'
+            log.debug("Can not create in %s %s: %s. Try d2.xlarge without ENA,", region, bootable,err)
+        else:
+            bootable = False
+            logging.info("Can not create in %s %s: %s", region, bootable, err)
+
+    return bootable
+
 parser = argparse.ArgumentParser(
     'Dump image information and generate yamls for dva run!')
 parser.add_argument('--task_url', dest='task_url', action='store',
@@ -68,34 +94,14 @@ for i in image_dict:
     else:
         instance_type = 'a1.large'
     ec2 = boto3.resource('ec2', region_name=i['region'])
-    try:
-        if i['region'] in regionids:
-            regionids.remove(i['region'])
-        vm = ec2.create_instances(
-            ImageId=i['ami'],
-            InstanceType=instance_type,
-            #KeyName=self.key_name,
-            #SecurityGroupIds=[
-            #    self.security_group_ids,
-            #],
-            SubnetId=subnet_list[0]['SubnetId'],
-            MaxCount=1,
-            MinCount=1,
-            #Placement={
-            #    'AvailabilityZone': i['region']+'a',
-            #},
-            DryRun=True,
-        )[0]
-    except ClientError as err:
-        if 'DryRunOperation' in str(err):
-            log.debug("%s can create in %s", i['region'], i['ami'])
-            bootable = True
-        elif 'Unsupported' in str(err):
-            bootable = 'Unsupported'
-            log.debug("Can not create in %s : %s", i['region'], err)
-        else:
-            logging.info("Can not create in %s : %s", i['region'], err)
-            bootable = False
+    if i['region'] in regionids:
+        regionids.remove(i['region'])
+    bootable = check_boot(ec2_resource=ec2,instance_type=instance_type,ami=i['ami'],subnet=subnet_list[0]['SubnetId'],region=i['region'])
+    if 'FalseNoENA' in str(bootable):
+        log.info("Failed as ENA, 2nd check with d2.xlarge instance type without ENA.")
+        instance_type = 'd2.xlarge'
+        bootable = check_boot(ec2_resource=ec2,instance_type=instance_type,ami=i['ami'],subnet=subnet_list[0]['SubnetId'],region=i['region'])
+
     image = ec2.Image(i['ami'])
     if image.public:
         public_status = 'Public'
