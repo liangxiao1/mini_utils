@@ -29,7 +29,6 @@ TASKS = {
     'reboot': 'stop and start an instance',
     'terminate': 'destroy an instance',
     'console': 'get console log from an instance',
-    'download': 'download ssh key file for login to this instance'  
 }
 
 class TasksList(Resource):
@@ -197,7 +196,6 @@ api.add_resource(Start, '/ops/start')
 api.add_resource(Reboot, '/ops/reboot')
 api.add_resource(Terminate, '/ops/terminate')
 api.add_resource(Console, '/ops/console')
-api.add_resource(SSHKEY, '/ops/download')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5901, debug=True)
