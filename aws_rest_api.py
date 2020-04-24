@@ -23,7 +23,7 @@ app = Flask(__name__)
 api = Api(app)
 
 TASKS = {
-    'status': 'stop an instance',
+    'status': 'status of an instance',
     'stop': 'stop an instance',
     'start': 'start an instance',
     'reboot': 'stop and start an instance',
