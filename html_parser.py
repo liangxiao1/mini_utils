@@ -93,5 +93,5 @@ with open(JOB_ENV_YAML, 'a') as fh:
     fh.write("%s%s: %s\n"% (tag, name, ','.join(results)))
     log.info("Write to %s", JOB_ENV_YAML)
 with open(JOB_ENV_TXT, 'a') as fh:
-    fh.write("%s%s=%s\n"% (tag, name,'.'.join(results)))
+    fh.write("%s%s=%s\n"% (tag, name,','.join(results)))
     log.info("Write to %s", JOB_ENV_TXT)
