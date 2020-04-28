@@ -664,7 +664,6 @@ gpgcheck=0
             sys.exit(ret_val)
     if args.pkg_url is not None:
         pkg_names = ''
-        pkg_names_list = []
         for pkg in args.pkg_url.split(','):
             pkg_name = pkg.split('/')[-1]
             pkg_name_no_ver = get_pkg_name(s=pkg_name)
@@ -675,16 +674,15 @@ gpgcheck=0
             ftp_client = ssh_client.open_sftp()
             ftp_client.put("/tmp/%s" % pkg_name, "/tmp/%s" % pkg_name)
             pkg_names += ' /tmp/%s' % pkg_name
-            pkg_names_list.append(pkg_names)
             if 'cloud-init' in pkg_name:
                 run_cmd(ssh_client, 'sudo  rm -rf /var/lib/cloud/*')
                 run_cmd(ssh_client, 'sudo  rm -rf /var/run/cloud-init/')
                 run_cmd(ssh_client, 'sudo rpm -e %s' % pkg_name_no_ver)
-        log.info("Install %s to instance!" % ' '.join(pkg_names_list))
-        cmd = 'sudo yum localinstall -y %s' % ' '.join(pkg_names_list)
+        log.info("Install %s to instance!" % pkg_names)
+        cmd = 'sudo yum localinstall -y %s' % pkg_names
         ret_val = run_cmd(ssh_client, cmd)
         if ret_val > 0:
-            cmd = 'sudo rpm -ivh %s --force' % ' '.join(pkg_names_list)
+            cmd = 'sudo rpm -ivh %s --force' % pkg_names
             ret_val = run_cmd(ssh_client, cmd)
         if 'cloud-init' in pkg_name:
             stdin, stdout, stderr = ssh_client.exec_command(
