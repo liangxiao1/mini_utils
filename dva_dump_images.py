@@ -16,6 +16,7 @@ if sys.version.startswith('2.7'):
 import urllib.request as request
 import logging
 import argparse
+import re
 
 parser = argparse.ArgumentParser(
     'Dump image information and generate yamls for dva run!')
@@ -66,6 +67,8 @@ else:
     platform = 'RHEL'
 
 version = s[1]['release']['version']
+if re.match('\d.\d.\d', version) != None:
+    version = version.rstrip('.[0-9]')
 if 'ATOMIC' in version.upper():
     version = version.replace('Atomic_','')
 if not str(version).startswith('6') and not str(version).startswith('7.2') and not str(version).startswith('7.3') and not str(version).startswith('7.1') and not str(version).startswith('7.0'):
