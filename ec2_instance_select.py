@@ -133,6 +133,17 @@ def df_parser(df):
                 if instance.startswith(i):
                     log.info("skipped %s as skip_instance specified" %i)
                     pick_list.remove(instance)
+    for instance in pick_list:
+        if args.check_live:
+            vm = EC2VM()
+            vm.instance_type = instance
+            if not vm.create():
+                pick_list.remove(instance)
+                log.info("skipped %s as not bootable" %instance)
+    for instance in pick_list:
+        if 'nano' in instance:
+            log.info("RHEL not support run as nano instance,skip!")
+            pick_list.remove(instance)
     if args.num_instances is not None:
         log.info("Select max %s instances" % args.num_instances)
         pick_list = random.sample(pick_list, int(args.num_instances))
@@ -149,15 +160,7 @@ def df_parser(df):
                 continue
         # logging.info(df[df['API Name'] == instance]['API Name'].values[0])
         log.info("%s selected", instance)
-        if 'nano' in instance:
-            log.info("RHEL not support run as nano instance,skip!")
-            continue
         # log.info(df[df['API Name'] == instance]['Instance Storage'].values)
-        if args.check_live:
-            vm = EC2VM()
-            vm.instance_type = instance
-            if not vm.create():
-                continue
         is_write = True
         disk_count = 1
         if is_write:
@@ -253,9 +256,9 @@ class EC2VM:
 
         except ClientError as err:
             if 'DryRunOperation' in str(err):
-                logging.info("Can create in %s", self.zone)
+                logging.info("%s can create in %s", self.instance_type, self.zone)
                 return True
-            logging.error("Can not create in %s : %s", self.zone, err)
+            logging.error("%s can not create in %s : %s", self.instance_type, self.zone, err)
             return False
         return False
 
