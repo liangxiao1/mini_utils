@@ -38,10 +38,8 @@ parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="da
                     help='credential file, default data/dva_key.yaml', required=False)
 parser.add_argument('--target', dest='target', action='store', default="aws",
                     help='optional, can be aws or aws-china or aws-us-gov', required=False)
-parser.add_argument('--dir', dest='dir', action='store',
-                    help='dir to save file', required=False)
-parser.add_argument('--output', dest='output', action='store', default="dva.yaml",
-                    help='save output to file name, default is dva.yaml', required=False)
+parser.add_argument('--output', dest='output', action='store', default="/tmp/dva.yaml",
+                    help='save output to file name, default is /tmp/dva.yaml', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true', default=False,
                     help='Run in debug mode', required=False)
 args = parser.parse_args()
@@ -53,7 +51,7 @@ else:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
 credential_file = args.tokenfile
-final_file = '%s/%s' % (args.dir, args.output)
+final_file = args.output
 credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
 
 def vpc_check(vpcid, region):
