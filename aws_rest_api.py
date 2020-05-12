@@ -14,6 +14,8 @@ from flask_restful import Resource, Api, reqparse
 import boto3
 from botocore.exceptions import ClientError
 import time
+import tempfile
+import os
 
 parser = reqparse.RequestParser()
 parser.add_argument('instanceid', type=str, help='instance id')
@@ -182,7 +184,43 @@ class Console(Resource):
             return {instanceid: '%s' % err}
 
         return {'instanceid': instanceid,
-                'state':instance.state,'console':console['Output']}
+                'state':instance.state,'download':'/ops/console/download','console':console['Output']}
+
+class ConsoleDownload(Resource):
+    def get(self):
+        # Default to 200 OK
+        args = parser.parse_args(strict=True)
+        instanceid = args['instanceid']
+        if instanceid == None:
+            return {'Error': "which instanceid do you get?"}
+        region = args['region']
+        if region == None:
+            region = 'us-west-2'
+        try:
+            ec2 = boto3.resource('ec2', region_name=region)
+            instance = ec2.Instance(instanceid)
+            instance.reload()
+            for i in range(10):
+                console = instance.console_output()
+                try:
+                    console['Output']
+                    break
+                except Exception as err:
+                    console['Output']="Please try later as delay in console output"
+                    time.sleep(2)
+                    continue
+            instance.reload()
+            instance.state
+        except ClientError as err:
+            return {instanceid: '%s' % err}
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+
+        fh, tmp_log_file = tempfile.mkstemp(suffix='_console.log',  dir='logs', text=False)
+        with open(tmp_log_file, 'w') as fh:
+            for line in console['Output'].split('\n'):
+                fh.writelines(line)
+        return send_file(tmp_log_file, as_attachment=True)
 
 class SSHKEY(Resource):
     def get(self):
@@ -196,6 +234,7 @@ api.add_resource(Start, '/ops/start')
 api.add_resource(Reboot, '/ops/reboot')
 api.add_resource(Terminate, '/ops/terminate')
 api.add_resource(Console, '/ops/console')
+api.add_resource(ConsoleDownload, '/ops/console/download')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5901, debug=True)
