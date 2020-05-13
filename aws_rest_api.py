@@ -219,8 +219,7 @@ class ConsoleDownload(Resource):
 
         fh, tmp_log_file = tempfile.mkstemp(suffix='_console.log',  dir='logs', text=False)
         with open(tmp_log_file, 'w') as fh:
-            for line in console['Output'].split('\n'):
-                fh.writelines(line)
+            print(console['Output'], file=fh)
         return send_file(tmp_log_file, as_attachment=True, cache_timeout=0)
 
 class SSHKEY(Resource):
