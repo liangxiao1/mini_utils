@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 '''
-ec2 data source : https://www.ec2instances.info/?region=us-gov-west-1
+now: describe-instance-types by latest awscli
+old: ec2 data source : https://www.ec2instances.info/?region=us-gov-west-1
+
 github : https://github.com/liangxiao1/mini_utils
 
 This tool is using for dump yaml file from ec2 data source and check whether 
@@ -24,17 +26,12 @@ import logging
 import argparse
 import os
 import sys
-import json
 import random
-import csv
 import boto3
 from botocore.exceptions import ClientError
 import signal
 import re
 
-import requests
-import lxml.html as lh
-import pandas as pd
 import pdb
 
 
@@ -42,44 +39,38 @@ def sig_handler(signum, frame):
     logging.info('Got signal %s, exit!', signum)
     sys.exit(0)
 
-
-def df_retrive():
-    if args.region is not None:
-        src_url = 'https://www.ec2instances.info/?region=%s' % args.region
-    else:
-        logging.info("No region specified, use default us-gov-west-1")
-        src_url = 'https://www.ec2instances.info/?region=us-gov-west-1'
-    logging.info("Get instance data from %s", src_url)
-    src_page = requests.get(src_url)
-    with open('/tmp/tt','wb') as fh:
-        fh.write(src_page.content)
-#    with gzip.open('/tmp/tt','rb') as fh:
-#        src_page=fh.read()
-
-    with open('/tmp/tt','r') as fh:
-        src_content = fh.read()
-    #it is a fast way to read html table, but not always works as expected.
-    #Use above solution firstly.
-    df = pd.read_html(src_content)
-    df[0].sort_values('API Name')
-    logging.info(df[0]['API Name'])
-    return df[0]
-
-
 def deal_instancetype(x):
     if x.count('.') > 0:
         return x
     return x+'.'
 
 
-def df_parser(df):
-    logging.info(df.sort_values('API Name')['API Name'].values[0])
-    instance_list = df.sort_values('API Name')['API Name'].tolist()
-    if len(instance_list) == 0:
-        logging.info("No instance can run in this region!")
-        sys.exit(1)
-    instance_list.sort()
-    # logging.info(instance_list)
+def instance_get():
+    instance_types_list = []
+    client = boto3.client('ec2')
+    tmp_dict_all = client.describe_instance_types()
+    i = 0
+    while True:
+        log.info('Get loop %s', i)
+        i = i + 1
+        tmp_dict = tmp_dict_all['InstanceTypes']
+        instance_types_list.extend(tmp_dict)
+        try:
+            nexttoken = tmp_dict_all['NextToken']
+        except KeyError as err:
+            log.info("Get all instance types done, length %s", len(instance_types_list))
+            break
+        if nexttoken == None:
+            log.info("Get all instance types done, length %s", len(instance_types_list))
+            break
+        tmp_dict_all = client.describe_instance_types(NextToken=nexttoken)
+
+    #log.info(instance_types_list)
+    instance_list = []
+    for instance in instance_types_list:
+        instance_list.append(instance['InstanceType'])
+        instance_list.sort()
+    log.info(instance_list)
 
     instance_str = 'instance_types: !mux\n'
     instance_template = string.Template('''    $instance_type:
@@ -92,7 +83,6 @@ def df_parser(df):
 ''')
 
     is_write = False
-
     pick_list = []
 
     if args.random_pick:
@@ -110,11 +100,10 @@ def df_parser(df):
     elif args.instances is not None:
         instances_type = map(
             deal_instancetype, args.instances.split(','))
+        log.info("instance type specified:%s", instances_type)
         for x in instances_type:
-            # logging.info(
-            #    df.where(df['API Name'].str.startswith(x))['API Name'].dropna().values)
-            pick_list.extend(df.where(df['API Name'].str.startswith(x))[
-                             'API Name'].dropna().values)
+            pick_list.extend(filter(lambda y: y.startswith(x), instance_list))
+        log.info('instance type matched: %s', pick_list)
     elif args.is_all:
         pick_list = instance_list
 
@@ -147,6 +136,9 @@ def df_parser(df):
     if args.num_instances is not None:
         log.info("Select max %s instances" % args.num_instances)
         pick_list = random.sample(pick_list, int(args.num_instances))
+    if len(pick_list) == 0:
+        log.info("No instance found, exit")
+        sys.exit(1)
     for instance in pick_list:
         if args.skip_instance is not None:
             skip_y = False
@@ -158,26 +150,24 @@ def df_parser(df):
                     continue
             if skip_y:
                 continue
-        # logging.info(df[df['API Name'] == instance]['API Name'].values[0])
         log.info("%s selected", instance)
-        # log.info(df[df['API Name'] == instance]['Instance Storage'].values)
         is_write = True
         disk_count = 1
+
         if is_write:
-            store_str = df[df['API Name'] ==
-                           instance]['Instance Storage'].values[0].strip('\n ')
-            if 'EBS only' in store_str:
-                disk_count = 1
-            elif r'*' in store_str:
-                disk_count = int(re.findall(
-                    '\([0-9]+ \*', store_str)[0].strip('*\('))
-                disk_count += 1
+            for i in instance_types_list:
+                if i['InstanceType'] == instance:
+                    break
+            instance = i
+            if instance['InstanceStorageSupported']:
+                disk_count = instance["InstanceStorageInfo"]["Disks"][0]["Count"] + 1
             else:
-                disk_count += 1
-            net_str = df[df['API Name'] ==
-                         instance]['Network Performance'].values[0].strip('\n ')
+                disk_count = 1
+            net_str = instance["NetworkInfo"]["NetworkPerformance"]
             if 'Moderate' in net_str:
                 net_perf = 0
+            elif '100 Gigabit' in net_str:
+                net_perf = 100
             elif '25 Gigabit' in net_str:
                 net_perf = 25
             elif '10 Gigabit' in net_str:
@@ -188,16 +178,11 @@ def df_parser(df):
                 net_perf = net_str.split(' ')[0]
             else:
                 net_perf = 0
-            if 'Yes' in df[df['API Name'] == instance]['IPv6 Support'].values[0]:
-                ipv6_support = True
-            else:
-                ipv6_support = False
-            vcpu_str = df[df['API Name'] ==
-                          instance]['vCPUs'].values[0]
-            vcpu_str = re.findall(
-                '[0-9 ]+ vCPUs', vcpu_str)[0].strip('vCPUs\n ')
+            ipv6_support = instance["NetworkInfo"]["Ipv6Supported"]
+
+            vcpu_str = instance["VCpuInfo"]["DefaultVCpus"]
             instance_str += instance_template.substitute(
-                instance_type=instance, cpu_count=vcpu_str, mem_size=df[df['API Name'] == instance]['Memory'].values[0].rstrip('GiB'), disk_count=disk_count, net_perf=net_perf, ipv6_support=ipv6_support)
+                instance_type=instance["InstanceType"], cpu_count=vcpu_str, mem_size=int(instance["MemoryInfo"]["SizeInMiB"])/1024, disk_count=disk_count, net_perf=net_perf, ipv6_support=ipv6_support)
             write_count += 1
 
             if args.split_num is None:
@@ -313,8 +298,7 @@ def main():
     signal.signal(signal.SIGQUIT, sig_handler)
     signal.signal(signal.SIGTERM, sig_handler)
 
-    instance_df = df_retrive()
-    df_parser(instance_df)
+    instance_get()
 
 
 if __name__ == '__main__':
