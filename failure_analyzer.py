@@ -95,7 +95,6 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
     for bug in bugs:
         LOG.debug("%s:%s", bug.id,bug.failure_status)
         key_rate_list = []
-        LOG.debug(bug.id, bug.case_name)
         #LOG.info("##########%s",bug.identify_keywords)
         if case_name is not None:
             if bug.case_name in case_name:
