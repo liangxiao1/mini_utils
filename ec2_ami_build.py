@@ -651,10 +651,10 @@ gpgcheck=0
             vm.terminate()
             sys.exit(ret_val)
     if args.pkgs is not None:
-        for i in range(1,20):
+        for i in range(1,50):
             ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
             if ret_val > 0:
-                log.error("Failed to update system, try again! max:20 now:%s" % i)
+                log.error("Failed to update system, try again! max:50 now:%s" % i)
                 time.sleep(5)
                 continue
             break
