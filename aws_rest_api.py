@@ -171,7 +171,7 @@ class Console(Resource):
             instance = ec2.Instance(instanceid)
             instance.reload()
             for i in range(10):
-                console = instance.console_output()
+                console = instance.console_output(Latest=True)
                 try:
                     console['Output']
                     break
@@ -202,7 +202,7 @@ class ConsoleDownload(Resource):
             instance = ec2.Instance(instanceid)
             instance.reload()
             for i in range(10):
-                console = instance.console_output()
+                console = instance.console_output(Latest=True)
                 try:
                     console['Output']
                     break
