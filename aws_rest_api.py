@@ -16,6 +16,7 @@ from botocore.exceptions import ClientError
 import time
 import tempfile
 import os
+import base64
 
 parser = reqparse.RequestParser()
 parser.add_argument('instanceid', type=str, help='instance id')
@@ -32,6 +33,7 @@ TASKS = {
     'terminate': 'destroy an instance',
     'console': 'get console log from an instance',
     'consoledownload': 'download console log from an instance',
+    'consolescreenshot ': 'download console screenshot from an instance',
 }
 
 class TasksList(Resource):
@@ -228,6 +230,29 @@ class ConsoleDownload(Resource):
             print(console['Output'], file=fh)
         return send_file(tmp_log_file, as_attachment=True, cache_timeout=0)
 
+class ConsoleScreeshot(Resource):
+    def get(self):
+        # If the system fall to grub cli, there is no console log, this will help
+        args = parser.parse_args(strict=True)
+        instanceid = args['instanceid']
+        if instanceid == None:
+            return {'Error': "which instanceid do you get?"}
+        region = args['region']
+        if region == None:
+            region = 'us-west-2'
+        try:
+            client = boto3.client('ec2', region_name=region)
+            console_dict = client.get_console_screenshot(InstanceId=instanceid, WakeUp=True)
+        except Exception as err:
+            return {"ERROR":str(err)}
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+
+        fh, tmp_log_file = tempfile.mkstemp(suffix='_console.jpg',  dir='logs', text=False)
+        with open(tmp_log_file, 'wb') as fh:
+            fh.write(base64.b64decode(console_dict['ImageData']))
+        return send_file(tmp_log_file, as_attachment=True, cache_timeout=0)
+
 class SSHKEY(Resource):
     def get(self):
         path = "data/guest_s1.pem"
@@ -241,6 +266,7 @@ api.add_resource(Reboot, '/ops/reboot')
 api.add_resource(Terminate, '/ops/terminate')
 api.add_resource(Console, '/ops/console')
 api.add_resource(ConsoleDownload, '/ops/consoledownload')
+api.add_resource(ConsoleScreeshot, '/ops/consolescreenshot')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5901, debug=True)
