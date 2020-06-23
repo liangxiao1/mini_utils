@@ -8,10 +8,11 @@ from __future__ import print_function
 import json
 import sys
 import re
+import os
 import argparse
 import logging
 from sqlalchemy import create_engine
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -43,6 +44,8 @@ ARG_PARSER.add_argument("--branch_name", dest='branch_name', action='store',
                         help="specify branch name, like RHEL6|7|8", default=None, required=True)
 ARG_PARSER.add_argument("--comments", dest='comments', action='store',
                         help="more information if have", default=None, required=False)
+ARG_PARSER.add_argument("--testrun", dest='testrun', action='store',
+                        help="specify a testrun name", default=None, required=True)
 ARGS = ARG_PARSER.parse_args()
 
 
@@ -76,6 +79,30 @@ class Report(DB_BASE):
     test_date = Column(String)
     comments = Column(String)
     platform = Column(String)
+    testrun = Column(String)
+    sqlite_autoincrement = True
+
+
+class EC2Case(DB_BASE):
+    '''
+    table for storing ec2 project log by casename
+    '''
+    __tablename__ = 'e_c2_report_case'
+    log_id = Column(Integer, primary_key=True)
+    ami_id = Column(String(50))
+    instance_type = Column(String(50))
+    compose_id = Column(String(50))
+    pkg_ver = Column(String(50))
+    branch_name = Column(String(50))
+    testrun = Column(String(50))
+    case_name = Column(String(50))
+    case_result = Column(String(50))
+    run_time = Column(Float)
+    case_debuglog = Column(String)
+    test_date = Column(String)
+    component = Column(String(50))
+    comments = Column(String)
+    platform = Column(String(50))
     sqlite_autoincrement = True
 
 def get_ami_id():
@@ -157,7 +184,7 @@ def report_writer():
             '[0-9]{4}-[0-9]{2}-[0-9]{2}', report_dict['debuglog'])
         for test_item in report_dict['tests']:
             instance_type = re.findall('Cloud-.*-', test_item['id'])[0].split('-')[1]
-            if not instances_sub_report.has_key(instance_type):
+            if instance_type not in instances_sub_report.keys():
                 instances_sub_report[instance_type] = {
                     'cases_other': 0, 'cases_pass': 0, 'cases_fail': 0, 'cases_cancel': 0,
                     'cases_total': 0, 'test_date': test_date, 'pass_rate': 0}
@@ -186,6 +213,7 @@ def report_writer():
         report.bug_id = ARGS.bug_id
         report.report_url = ARGS.report_url
         report.branch_name = ARGS.branch_name
+        report.testrun = ARGS.testrun
         report.comments = ARGS.comments
         report.platform = 'aws'
         report.cases_pass = instances_sub_report[instance_type]['cases_pass']
@@ -199,7 +227,54 @@ def report_writer():
         session.add(report)
         session.commit()
 
+def case_report_writer():
+    '''
+    read and parse avocado-cloud logs, write cases status to db.
+    '''
+    instances_sub_report = {}
+
+    log_json = ARGS.log_dir+"/results.json"
+    with open(log_json, 'r') as file_handler:
+        report_dict = json.load(file_handler)
+        # print(report_dict)
+        print(report_dict['debuglog'])
+        test_date = re.findall(
+            '[0-9]{4}-[0-9]{2}-[0-9]{2}', report_dict['debuglog'])
+        for test_item in report_dict['tests']:
+            instance_type = re.findall('Cloud-.*-', test_item['id'])[0].split('-')[1]
+            case_name = re.findall('\.test.*;', test_item['id'])[0].rstrip(";").lstrip('.')
+            component =re.findall('(:.*?\.)', test_item['id'])[0].rstrip('.').lstrip(':')
+            LOG.info("instance_type: {} case_name: {} component: {}".format(instance_type, case_name, component))
+            case_result = test_item['status']
+            run_time = test_item['time']
+            debuglog = os.path.join(ARGS.log_dir, '/'.join(test_item['logfile'].split('/')[-3:]))
+            LOG.info("instance_type: {} case_name: {} component: {} debuglog: {}".format(instance_type, case_name, component,debuglog))
+            with open(debuglog,'r') as fh:
+                case_debuglog = fh.read()
+
+            report = EC2Case()
+            report.ami_id = ARGS.ami_id
+            report.instance_type = instance_type
+            report.compose_id = ARGS.compose_id
+            report.pkg_ver = ARGS.pkg_ver
+            report.bug_id = ARGS.bug_id
+            report.report_url = ARGS.report_url
+            report.branch_name = ARGS.branch_name
+            report.testrun = ARGS.testrun
+            report.case_name = case_name
+            report.case_result = case_result
+            report.case_debuglog = case_debuglog
+            report.run_time = run_time
+            report.component = component
+            report.comments = ARGS.comments
+            report.platform = 'aws'
+            report.test_date = test_date[0]
+            session = DB_SESSION()
+            session.add(report)
+            session.commit()
+
 if __name__ == "__main__":
     get_ami_id()
     get_pkg_ver()
     report_writer()
+    case_report_writer()
