@@ -22,6 +22,10 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG,
                     format='%(levelname)s:%(message)s')
 
+if sys.version.startswith('2'):
+    LOG.info("Please do not run it using python2")
+    sys.exit(1)
+
 ARG_PARSER = argparse.ArgumentParser(description="Write results to local db")
 ARG_PARSER.add_argument('--dir', dest='log_dir', action='store',
                         help="specify log directory", default=None, required=True)
@@ -263,7 +267,7 @@ def case_report_writer():
             report.testrun = ARGS.testrun
             report.case_name = case_name
             report.case_result = case_result
-            report.case_debuglog = case_debuglog
+            report.case_debuglog = case_debuglog.encode('utf-8')
             report.run_time = run_time
             report.component = component
             report.comments = ARGS.comments
