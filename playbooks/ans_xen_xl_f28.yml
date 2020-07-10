@@ -1,0 +1,100 @@
+# Ansible playbook to set up xen host in Fedora 28
+- name: ans_xen_xl
+  hosts: '{{ hosts | default("testsystems") }}'
+  tasks:
+
+    - name: install required pkgs
+      dnf:
+        name:
+          - dosfstools
+          - genisoimage
+          - libvirt
+          - net-tools
+          - nfs-utils
+          - xen
+          - qemu-system-x86
+          - git
+          - python3-pip
+          - tcpdump
+          - wget
+          - python3-libselinux
+          - python2-aexpect
+          - libselinux-python
+          - jigdo
+        state: latest
+
+    #- name: pip install python3-aexpect module
+    #  shell: pip3 install -U aexpect
+
+    - name: disable selinux as it blocking xl command run
+      replace:
+        path: /etc/selinux/config
+        regexp: 'SELINUX=enforcing'
+        replace: 'SELINUX=disabled'
+
+    - name: disable NM service
+      systemd:
+        name: NetworkManager
+        enabled: no
+        state: stopped
+
+    - name: enable network service
+      service:
+        name: network
+        enabled: yes
+
+    - name: enable libvirt service
+      service:
+        name: libvirtd
+        enabled: yes
+
+    - name: set xen as default boot kernel
+      shell: grub2-set-default 'Fedora, with Xen hypervisor'
+
+    - name: Create xenbr0
+      blockinfile:
+        path: /etc/sysconfig/network-scripts/ifcfg-xenbr0
+        create: yes
+        block: |
+          DEVICE=xenbr0
+          TYPE=Bridge
+          ONBOOT=yes
+          DELAY=0
+          NM_CONTROLLED=no
+          BOOTPROTO=dhcp
+          PEERDNS=yes
+          PEERROUTES=yes
+          DEFROUTE=yes
+
+    - name: Add bridge info to local interface {{ ansible_default_ipv4.interface }}
+      blockinfile:
+        path: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface }}
+        insertafter: EOF
+        block: |
+          NM_CONTROLLED=no
+          BRIDGE=xenbr0
+
+    - name: backup resolve.conf to /mnt
+      copy:
+        src: /etc/resolv.conf
+        dest: /mnt/resolv.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    #- name: Extend all remaining space in the root volume group
+    #  shell: lvextend /dev/fedora*/root -l+100%FREE |echo 0
+#
+    #- name: Grow the root volume group
+    #  shell: xfs_growfs /
+    #- name: Extend all remaining space in the root volume group
+    #  lvol:(no regex support)
+    #    vg: fedora*
+    #    lv: root
+    #    size: 100%FREE
+
+    - name: Restart server
+      reboot:
+        reboot_timeout: 3600
+        test_command: xl list
+

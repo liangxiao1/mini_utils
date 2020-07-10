@@ -267,7 +267,7 @@ def case_report_writer():
             report.testrun = ARGS.testrun
             report.case_name = case_name
             report.case_result = case_result
-            report.case_debuglog = case_debuglog.encode('utf-8')
+            report.case_debuglog = case_debuglog
             report.run_time = run_time
             report.component = component
             report.comments = ARGS.comments
