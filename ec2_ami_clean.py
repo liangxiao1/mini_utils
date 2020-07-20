@@ -70,7 +70,7 @@ if __name__ == '__main__':
         try:
             ami=ami.strip(' ')
             image = ec2.Image(ami)
-            log.info("%s found" % ami)
+            log.info("%s found, state %s" , ami, image.state)
             log.debug(image.block_device_mappings)
             snapid = image.block_device_mappings[0]['Ebs']['SnapshotId']
             log.info("Get snapshot id: %s", snapid)
@@ -81,6 +81,8 @@ if __name__ == '__main__':
                 del_ami(ami)
                 time.sleep(2)
                 del_snapshot(snapid)
+            else:
+                log.info("You can pass --delete to delete AMIs")
         except Exception as err:
             log.info("Hit error: %s", str(err))
             sys.exit(1)
