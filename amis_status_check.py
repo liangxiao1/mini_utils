@@ -16,6 +16,7 @@ import logging
 import argparse
 import boto3
 from botocore.exceptions import ClientError
+from operator import itemgetter
 
 def check_boot(ec2_resource=None,instance_type=None,ami=None,subnet=None,region=None):
     try:
@@ -85,7 +86,8 @@ with open(json_file, 'r') as fh:
     image_dict = json.load(fh)
 # log.info(image_dict)
 log.info("AMI Name | AMI ID | Region Name | Public | Bootable")
-for i in image_dict:
+#for i in sorted(image_dict, key=itemgetter('region')):
+for i in sorted(image_dict, key=lambda r: (r['region'])):
     bootable = False
     client = boto3.client('ec2', region_name=i['region'])
     subnet_list = client.describe_subnets()['Subnets']
