@@ -59,7 +59,7 @@ if args.is_debug:
                         format='%(levelname)s:%(message)s')
 else:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
-task_url = args.task_url
+task_url = args.task_url.replace('push','task')
 json_url = task_url + "/log/images.json?format=raw"
 s = request.urlopen(json_url)
 log.info('Get data from %s', s.geturl())
