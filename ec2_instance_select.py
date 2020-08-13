@@ -48,7 +48,22 @@ def deal_instancetype(x):
 def instance_get():
     instance_types_list = []
     client = boto3.client('ec2')
-    tmp_dict_all = client.describe_instance_types()
+    filters = []
+    if args.is_all:
+        filters = []
+        log.info("Filter all generation instance types")
+    else:
+        filters = [
+            {
+                'Name': 'current-generation',
+                'Values': [
+                    'true',
+                ]
+            },
+        ]
+        log.info("Filter only current generation instance types")
+    tmp_dict_all = client.describe_instance_types(Filters=filters)
+    #tmp_dict_all = client.describe_instance_types()
     i = 0
     while True:
         log.info('Get loop %s', i)
@@ -58,12 +73,26 @@ def instance_get():
         try:
             nexttoken = tmp_dict_all['NextToken']
         except KeyError as err:
-            log.info("Get all instance types done, length %s", len(instance_types_list))
+            log.info("Get instance types done, length %s", len(instance_types_list))
             break
         if nexttoken == None:
-            log.info("Get all instance types done, length %s", len(instance_types_list))
+            log.info("Get instance types done, length %s", len(instance_types_list))
             break
-        tmp_dict_all = client.describe_instance_types(NextToken=nexttoken)
+        tmp_dict_all = client.describe_instance_types(NextToken=nexttoken, Filters=filters)
+    tmp_instance_types_list = []
+    if args.is_x86:
+        log.info("Filter only x86 instance types")
+        for instance in instance_types_list:
+            if instance["ProcessorInfo"]["SupportedArchitectures"][0] == "arm64":
+                continue
+            tmp_instance_types_list.append(instance)
+    if args.is_arm:
+        log.info("Filter only arm instance types")
+        for instance in instance_types_list:
+            if instance["ProcessorInfo"]["SupportedArchitectures"][0] != "arm64":
+                continue
+            tmp_instance_types_list.append(instance)
+    instance_types_list = tmp_instance_types_list
 
     #log.info(instance_types_list)
     instance_list = []
@@ -129,13 +158,19 @@ def instance_get():
             if not vm.create():
                 pick_list.remove(instance)
                 log.info("skipped %s as not bootable" %instance)
-    for instance in pick_list:
-        if 'nano' in instance:
-            log.info("RHEL not support run as nano instance,skip!")
-            pick_list.remove(instance)
-    if args.num_instances is not None:
-        log.info("Select max %s instances" % args.num_instances)
-        pick_list = random.sample(pick_list, int(args.num_instances))
+    for i in range(10):
+        for instance in pick_list:
+            if 'nano' in instance:
+                log.info("RHEL not support run as nano instance,skip!")
+                pick_list.remove(instance)
+        if args.num_instances is not None:
+            log.info("Select max %s instances" % args.num_instances)
+            pick_list = random.sample(pick_list, int(args.num_instances))
+        if len(pick_list) == 0:
+            log.info("No instance found, retry...")
+            continue
+        else:
+            break
     if len(pick_list) == 0:
         log.info("No instance found, exit")
         sys.exit(1)
@@ -252,7 +287,11 @@ parser = argparse.ArgumentParser(
     description="Generate instance type yaml file for avocado-cloud test. \
     eg.  python /tmp/ec2_instance_select.py -c --ami-id xxxx --key_name xxxx --security_group_ids xxxx --subnet_id xxxx --zone us-west-2c -t i3.large -f /tmp/tt.yaml")
 parser.add_argument('-a', dest='is_all', action='store_true',
-                    help='dump all instance types', required=False)
+                    help='dump all instance types, default is only current generation', required=False)
+parser.add_argument('-x86', dest='is_x86', action='store_true',
+                    help='only pick up x86 instance types', required=False)
+parser.add_argument('-arm', dest='is_arm', action='store_true',
+                    help='only pick up arm instance types', required=False)
 parser.add_argument('-c', dest='check_live', action='store_true',
                     help='check whether instance can run in this region, ami_id,key_name,security_group_ids,subnet_id,instance_type and zone option required', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true',
