@@ -80,26 +80,21 @@ def instance_get():
             break
         tmp_dict_all = client.describe_instance_types(NextToken=nexttoken, Filters=filters)
     tmp_instance_types_list = []
+    if args.is_x86 and args.is_arm:
+        log.info("Only one arch can be specified")
+        sys.exit(1)
     if args.is_x86:
         log.info("Filter only x86 instance types")
-        for instance in instance_types_list:
-            if instance["ProcessorInfo"]["SupportedArchitectures"][0] == "arm64":
-                continue
-            tmp_instance_types_list.append(instance)
+        tmp_instance_types_list = [x for x in instance_types_list if x["ProcessorInfo"]["SupportedArchitectures"][0] != "arm64"]
     if args.is_arm:
         log.info("Filter only arm instance types")
-        for instance in instance_types_list:
-            if instance["ProcessorInfo"]["SupportedArchitectures"][0] != "arm64":
-                continue
-            tmp_instance_types_list.append(instance)
+        tmp_instance_types_list = [x for x in instance_types_list if x["ProcessorInfo"]["SupportedArchitectures"][0] == "arm64"]
     instance_types_list = tmp_instance_types_list
 
     #log.info(instance_types_list)
-    instance_list = []
-    for instance in instance_types_list:
-        instance_list.append(instance['InstanceType'])
-        instance_list.sort()
-    log.info(instance_list)
+    instance_list = [ x['InstanceType'] for x in instance_types_list ]
+    instance_list.sort()
+    log.info("The available instances: {}".format(instance_list))
 
     instance_str = 'instance_types: !mux\n'
     instance_template = string.Template('''    $instance_type:
@@ -135,6 +130,9 @@ def instance_get():
         log.info('instance type matched: %s', pick_list)
     elif args.is_all:
         pick_list = instance_list
+    if len(pick_list) == 0:
+        log.info("Please specify instance type or random pick or all.")
+        sys.exit(1)
 
     write_count = 0
     wroten_count = 0
@@ -163,7 +161,9 @@ def instance_get():
             if 'nano' in instance:
                 log.info("RHEL not support run as nano instance,skip!")
                 pick_list.remove(instance)
-        if args.num_instances is not None:
+        if args.num_instances is not None and len(pick_list) <= int(args.num_instances):
+            log.info("pick_list {} is less than wanted {}".format(len(pick_list), args.num_instances))
+        if args.num_instances is not None and len(pick_list) >= int(args.num_instances):
             log.info("Select max %s instances" % args.num_instances)
             pick_list = random.sample(pick_list, int(args.num_instances))
         if len(pick_list) == 0:
