@@ -17,6 +17,14 @@ import argparse
 import boto3
 from botocore.exceptions import ClientError
 from operator import itemgetter
+from yaml import load, dump
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
+#/etc/dva.yaml
+credential_file = 'data/dva_key.yaml'
 
 def check_boot(ec2_resource=None,instance_type=None,ami=None,subnet=None,region=None):
     try:
@@ -50,6 +58,10 @@ parser.add_argument('--task_url', dest='task_url', action='store',
                     help='image build task url', required=True)
 parser.add_argument('--dir', dest='dir', action='store', default='/tmp',
                     help='save files to dir', required=False)
+parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="data/dva_key.yaml",
+                    help='credential file, default data/dva_key.yaml', required=False)
+parser.add_argument('--target', dest='target', action='store', default="aws",
+                    help='optional, can be aws or aws-china or aws-us-gov', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true', default=False,
                     help='Run in debug mode', required=False)
 args = parser.parse_args()
@@ -59,6 +71,23 @@ if args.is_debug:
                         format='%(levelname)s:%(message)s')
 else:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
+
+credential_file = args.tokenfile
+credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscription_username','subscription_password']"
+if not os.path.exists(credential_file):
+    log.error("%s not found, please create it and add your key into it as the following format, multilines support if have" % credential_file)
+    log.info(credential_file_format)
+else:
+    with open(credential_file,'r') as fh:
+         keys_data = load(fh, Loader=Loader)
+    try:
+        ACCESS_KEY = keys_data[args.target][0]
+        SECRET_KEY = keys_data[args.target][1]
+    except KeyError:
+        log.info("%s credential cfg file read error, try use default", args.target)
+        ACCESS_KEY = None
+        SECRET_KEY = None
+
 task_url = args.task_url.replace('push','task')
 json_url = task_url + "/log/images.json?format=raw"
 s = request.urlopen(json_url)
@@ -76,8 +105,15 @@ with open(json_file, 'r') as f:
     s = json.load(f)
 
 version = s[1]['release']['version']
-
-client = boto3.client('ec2',region_name='us-west-2')
+if ACCESS_KEY is None:
+    client = boto3.client('ec2',region_name='us-west-2')
+else:
+    client = boto3.client(
+        'ec2',
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        region_name='us-west-2',
+    )
 region_list = client.describe_regions()['Regions']
 regionids = []
 for region in region_list:
@@ -89,13 +125,29 @@ log.info("AMI Name | AMI ID | Region Name | Public | Bootable")
 #for i in sorted(image_dict, key=itemgetter('region')):
 for i in sorted(image_dict, key=lambda r: (r['region'])):
     bootable = False
-    client = boto3.client('ec2', region_name=i['region'])
+    if ACCESS_KEY is None:
+        client = boto3.client('ec2', region_name=i['region'])
+    else:
+        client = boto3.client(
+            'ec2',
+            aws_access_key_id=ACCESS_KEY,
+            aws_secret_access_key=SECRET_KEY,
+            region_name=i['region'],
+        )
     subnet_list = client.describe_subnets()['Subnets']
     if 'x86_64' in i['name']:
         instance_type = 'm5.large'
     else:
         instance_type = 'a1.large'
-    ec2 = boto3.resource('ec2', region_name=i['region'])
+    if ACCESS_KEY is None:
+        ec2 = boto3.resource('ec2', region_name=i['region'])
+    else:
+        ec2 = boto3.resource(
+            'ec2',
+            aws_access_key_id=ACCESS_KEY,
+            aws_secret_access_key=SECRET_KEY,
+            region_name=i['region'],
+        )
     if i['region'] in regionids:
         regionids.remove(i['region'])
     bootable = check_boot(ec2_resource=ec2,instance_type=instance_type,ami=i['ami'],subnet=subnet_list[0]['SubnetId'],region=i['region'])
