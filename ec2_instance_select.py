@@ -122,13 +122,14 @@ def instance_get():
                 a = i+1
             i += 1
     elif args.instances is not None:
+        log.info("instance type specified:%s", instances_type)
         instances_type = map(
             deal_instancetype, args.instances.split(','))
-        log.info("instance type specified:%s", instances_type)
         for x in instances_type:
             pick_list.extend(filter(lambda y: y.startswith(x), instance_list))
         log.info('instance type matched: %s', pick_list)
     elif args.is_all:
+        log.info("Pick all instance types")
         pick_list = instance_list
     if len(pick_list) == 0:
         log.info("Please specify instance type or random pick or all.")

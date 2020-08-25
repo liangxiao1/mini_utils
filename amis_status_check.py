@@ -77,7 +77,7 @@ with open(json_file, 'r') as f:
 
 version = s[1]['release']['version']
 
-client = boto3.client('ec2')
+client = boto3.client('ec2',region_name='us-west-2')
 region_list = client.describe_regions()['Regions']
 regionids = []
 for region in region_list:
