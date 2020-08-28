@@ -589,6 +589,7 @@ def create_ami():
             sys.exit(0)
         cmd = 'uname -a'
         run_cmd(ssh_client, cmd)
+        run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     if args.repo_url is not None:
         if args.proxy_url is not None:
             repo_temp = string.Template('''
