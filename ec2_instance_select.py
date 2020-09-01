@@ -89,7 +89,8 @@ def instance_get():
     if args.is_arm:
         log.info("Filter only arm instance types")
         tmp_instance_types_list = [x for x in instance_types_list if x["ProcessorInfo"]["SupportedArchitectures"][0] == "arm64"]
-    instance_types_list = tmp_instance_types_list
+    if args.is_x86 or args.is_arm:
+        instance_types_list = tmp_instance_types_list
 
     #log.info(instance_types_list)
     instance_list = [ x['InstanceType'] for x in instance_types_list ]
@@ -122,9 +123,9 @@ def instance_get():
                 a = i+1
             i += 1
     elif args.instances is not None:
-        log.info("instance type specified:%s", instances_type)
         instances_type = map(
             deal_instancetype, args.instances.split(','))
+        log.info("instance type specified:%s", instances_type)
         for x in instances_type:
             pick_list.extend(filter(lambda y: y.startswith(x), instance_list))
         log.info('instance type matched: %s', pick_list)
