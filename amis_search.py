@@ -7,6 +7,7 @@ This tool is for searching amis status in all regions and check whether they are
 '''
 import json
 import os
+import copy
 import sys
 import logging
 import argparse
@@ -107,7 +108,7 @@ region_list = client.describe_regions()['Regions']
 regionids = []
 for region in region_list:
     regionids.append(region['RegionName'])
-regionids_tmp = regionids
+regionids_tmp = copy.deepcopy(regionids)
 # log.info(image_dict)
 if args.is_check:
     log.info("AMI Name | AMI ID | Region Name | Public | Bootable")
@@ -184,4 +185,4 @@ for region in regionids:
         else:
             log.info("%s %s %s %s", img['Name'], img['ImageId'], region, public_status)
 if len(regionids_tmp) > 0:
-    log.info('Below regions no ami found: %s', regionids)
+    log.info('Below regions no ami found: %s', regionids_tmp)
