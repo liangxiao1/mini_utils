@@ -61,6 +61,10 @@ elif 'BETA' in s[1]['name'].upper():
     log.info("It is rhel beta image")
     product = 'CLOUD'
     platform = 'BETA'
+elif 'SAP' in s[1]['name'].upper():
+    log.info("It is SAP image")
+    product = 'SAP'
+    platform = 'SAP'
 else:
     log.info("It is rhel image")
     product = 'CLOUD'
