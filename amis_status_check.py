@@ -22,6 +22,7 @@ try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
+import concurrent.futures
 
 #/etc/dva.yaml
 credential_file = 'data/dva_key.yaml'
@@ -122,8 +123,9 @@ with open(json_file, 'r') as fh:
     image_dict = json.load(fh)
 # log.info(image_dict)
 log.info("AMI Name | AMI ID | Region Name | Public | Bootable")
+result_list = []
 #for i in sorted(image_dict, key=itemgetter('region')):
-for i in sorted(image_dict, key=lambda r: (r['region'])):
+def check_item(i):
     bootable = False
     if ACCESS_KEY is None:
         client = boto3.client('ec2', region_name=i['region'])
@@ -161,6 +163,21 @@ for i in sorted(image_dict, key=lambda r: (r['region'])):
         public_status = 'Public'
     else:
         public_status = 'Private'
-    log.info("%s %s %s %s %s", i['name'], i['ami'], i['region'], public_status, bootable)
+    result_list.append([i['name'], i['ami'], i['region'], public_status, bootable])
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=150) as executor:
+    check_all_regions_tasks = {executor.submit(check_item, item): item for item in sorted(image_dict, key=lambda r: (r['region']))}
+    for r in concurrent.futures.as_completed(check_all_regions_tasks):
+        x = check_all_regions_tasks[r]
+        try:
+            data = r.result()
+        except Exception as exc:
+            log.error("{} generated an exception: {}".format(r,exc))
+        else:
+            pass
+result_list = sorted(result_list, key=lambda x:x[2])
+for i in result_list:
+    log.info("%s %s %s %s %s", i[0], i[1], i[2], i[3], i[4])
+log.info("Found total AMIs: {}".format(len(result_list)))
 if len(regionids) > 0:
     log.info('Below regions no ami uploaded: %s', regionids)

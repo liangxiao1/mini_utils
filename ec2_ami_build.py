@@ -589,7 +589,6 @@ def create_ami():
             sys.exit(0)
         cmd = 'uname -a'
         run_cmd(ssh_client, cmd)
-        run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     if args.repo_url is not None:
         if args.proxy_url is not None:
             repo_temp = string.Template('''
@@ -688,6 +687,8 @@ gpgcheck=0
         if 'cloud-init' in pkg_name:
             stdin, stdout, stderr = ssh_client.exec_command(
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
+    run_cmd(ssh_client, 'sudo yum install -y python3')
+    run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     if ret_val > 0:
         log.error("Failed to update system!")
         vm.terminate()
