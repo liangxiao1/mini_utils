@@ -43,8 +43,14 @@ def get_by_compose():
     except IndexError:
         if ARGS.compose.startswith('RHEL-7'):
             branch_name = 'RHEL-7-latest'
-        else:
+        elif ARGS.compose.startswith('RHEL-8'):
             branch_name = 'RHEL-8-latest'
+        elif ARGS.compose.startswith('RHEL-9'):
+            branch_name = 'RHEL-9-latest'
+        elif ARGS.compose.startswith('RHEL-10'):
+            branch_name = 'RHEL-10-latest'
+        else:
+            branch_name = 'RHEL-latest'
     LOG.debug('Your branch_name:%s', branch_name)
     try:
         if ARGS.arch == 'aarch64':
@@ -54,8 +60,14 @@ def get_by_compose():
     except KeyError:
         if branch_name.startswith('RHEL-7'):
             branch_name = 'RHEL-7-latest'
-        else:
+        elif branch_name.startswith('RHEL-8'):
             branch_name = 'RHEL-8-latest'
+        elif branch_name.startswith('RHEL-9'):
+            branch_name = 'RHEL-9-latest'
+        elif branch_name.startswith('RHEL-10'):
+            branch_name = 'RHEL-10-latest'
+        else:
+            branch_name = 'RHEL-latest'
         if ARGS.arch == 'aarch64':
             ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
         else:
@@ -78,8 +90,10 @@ def get_by_kernel():
             break
     if branch_name is None and kernel.startswith('3.'):
         branch_name = 'RHEL-7-latest'
-    elif branch_name is None:
+    elif branch_name is None and kernel.startswith('4.'):
         branch_name = 'RHEL-8-latest'
+    else:
+        branch_name = 'RHEL-latest'
     if ARGS.arch == 'aarch64':
         ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
     else:
