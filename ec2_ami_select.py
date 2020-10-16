@@ -86,19 +86,23 @@ def get_by_kernel():
     for branch in KEYS_DATA.keys():
         if KEYS_DATA[branch]['kernel'] == kernel:
             branch_name = branch
+            LOG.debug('match:%s success',  KEYS_DATA[branch]['kernel'])
             LOG.debug("detcted branch_name: %s", branch_name)
             break
-    if branch_name is None and kernel.startswith('3.'):
-        branch_name = 'RHEL-7-latest'
-    elif branch_name is None and kernel.startswith('4.'):
-        branch_name = 'RHEL-8-latest'
-    else:
-        branch_name = 'RHEL-latest'
+        else:
+            LOG.debug('match:%s false',  KEYS_DATA[branch]['kernel'])
+    if branch_name is None:
+        if kernel.startswith('3.'):
+            branch_name = 'RHEL-7-latest'
+        elif kernel.startswith('4.'):
+            branch_name = 'RHEL-8-latest'
+        else:
+            branch_name = 'RHEL-latest'
     if ARGS.arch == 'aarch64':
         ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
     else:
         ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
-    LOG.debug('branch_namee: %s ami_id: %s', branch_name, ami_id)
+    LOG.debug('branch_name: %s ami_id: %s', branch_name, ami_id)
     return branch_name, ami_id
 
 if __name__ == '__main__':
