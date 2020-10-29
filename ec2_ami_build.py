@@ -689,6 +689,8 @@ gpgcheck=0
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
     run_cmd(ssh_client, 'sudo yum install -y python3')
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
+    run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
+    run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
     if ret_val > 0:
         log.error("Failed to update system!")
         vm.terminate()
