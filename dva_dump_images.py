@@ -83,8 +83,8 @@ if not str(version).startswith('6') and not str(version).startswith('7.2') and n
       - {delete_on_termination: true, name: /dev/sda1, size: '15'}
       - {ephemeral_name: ephemeral0, name: /dev/sdf}
       cpu: '4'
-      cloudhwname: m5.xlarge
-      memory: '16000000'
+      cloudhwname: m5.large
+      memory: '8000000'
       virtualization: hvm
   itype: $itype
   platform: $platform
