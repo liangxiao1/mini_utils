@@ -47,7 +47,7 @@ def deal_instancetype(x):
 
 def instance_get():
     instance_types_list = []
-    client = boto3.client('ec2')
+    client = boto3.client('ec2', region_name=args.region)
     filters = []
     if args.is_all:
         filters = []
@@ -249,7 +249,7 @@ def instance_get():
 
 class EC2VM:
     def __init__(self):
-        self.ec2 = boto3.resource('ec2')
+        self.ec2 = boto3.resource('ec2', region_name=args.region)
 
         self.ami_id = args.ami_id
         self.key_name = args.key_name
