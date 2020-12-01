@@ -510,6 +510,7 @@ parser.add_argument('--pkg_url', dest='pkg_url', default=None, action='store',
 parser.add_argument('--repo_url', dest='repo_url', default=None, action='store',
                     help='specify it if sync with repo, or pkg dependency,seperate by ","', required=False)
 parser.add_argument('--pkgs',dest='pkgs',default=None,action='store',help='if repo is accessible, specify pkg names which you want to add',required=False)
+parser.add_argument('--cmds',dest='cmds',default=None,action='store',help='excute cmd before starting to create ami',required=False)
 parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
 
@@ -689,6 +690,8 @@ gpgcheck=0
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
     run_cmd(ssh_client, 'sudo yum install -y python3')
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
+    if args.cmds is not None:
+        run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
     run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
     run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
     if ret_val > 0:
