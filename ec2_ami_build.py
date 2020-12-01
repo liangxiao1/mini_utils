@@ -514,7 +514,6 @@ parser.add_argument('--cmds',dest='cmds',default=None,action='store',help='excut
 parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
 
-
 args = parser.parse_args()
 log = logging.getLogger(__name__)
 FORMAT = "%(levelname)s:FUNC-%(funcName)s:%(message)s"
@@ -555,11 +554,18 @@ def create_ami():
             end_time = time.time()
             if end_time-start_time > 180:
                 log.info("Unable to make connection!")
+                log.info("Terminate instance %s" % vm.id)
+                vm.terminate()
                 sys.exit(1)
             if args.keyfile is None:
                 ssh_client.load_system_host_keys()
                 ssh_client.connect(vm.public_dns_name, username=args.user)
             else:
+                if not os.path.exists(args.keyfile):
+                    log.error("{} not found".format(args.keyfile))
+                    log.info("Terminate instance %s" % vm.id)
+                    vm.terminate()
+                    sys.exit(1)
                 ssh_client.connect(
                     vm.public_dns_name,
                     username=args.user,
@@ -571,7 +577,7 @@ def create_ami():
         except Exception as e:
             log.info("*** Failed to connect to %s:%d: %r" %
                      (vm.public_dns_name, default_port, e))
-            log.info("Retry more times!")
+            log.info("Retry again, timeout 180s!")
             time.sleep(10)
     if args.proxy_url is not None:
         log.info(
@@ -588,8 +594,6 @@ def create_ami():
         except KeyboardInterrupt:
             print("C-c: Port forwarding stopped.")
             sys.exit(0)
-        cmd = 'uname -a'
-        run_cmd(ssh_client, cmd)
     if args.repo_url is not None:
         if args.proxy_url is not None:
             repo_temp = string.Template('''
@@ -692,12 +696,14 @@ gpgcheck=0
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     if args.cmds is not None:
         run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
-    run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
-    run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+    if args.repo_url is not None:
+        run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
+        run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
     if ret_val > 0:
         log.error("Failed to update system!")
         vm.terminate()
         sys.exit(ret_val)
+    log.info("Start to create AMI ......")
     image = vm.create_image(
         BlockDeviceMappings=[
             {
