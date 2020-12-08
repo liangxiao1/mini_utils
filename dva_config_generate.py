@@ -375,6 +375,7 @@ try:
 except ClientError as error:
     log.info("Failed to init %s credential in %s", args.target, region)
     log.info("Error: %s", error)
+    log.info("If your credential is correct, you may try to reboot slave node to make it work.")
     sys.exit(1)
 #region_list = client.describe_regions()['Regions']
 regionids = []
