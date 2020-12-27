@@ -85,11 +85,14 @@ def setup_avocado():
         os.unlink(tmp_yaml)
 
     with open(ec2_env_yaml, 'r') as fh:
+        has_additionalinfo = False
         for line in fh.readlines():
             if line.startswith('ami_id :'):
                 line = 'ami_id : %s\n' % args.ami_id
             if line.startswith('region : '):
                 line = 'region : %s\n' % args.region
+            if line.startswith('ssh_user : '):
+                line = 'ssh_user : %s\n' % args.ssh_user
             if line.startswith('availability_zone : '):
                 line = 'availability_zone : %s\n' % args.zone
             if line.startswith('subnet_id_ipv6 : '):
@@ -106,6 +109,17 @@ def setup_avocado():
                 line = 'ltp_url: %s\n' % args.ltp_url
             if line.startswith('code_cover : '):
                 line = 'code_cover : %s\n' % args.is_gcov
+            if line.startswith('profile_name : '):
+                line = 'profile_name : %s\n' % args.profile_name
+            if line.startswith('additionalinfo : ') and args.additionalinfo is not None:
+                line = 'additionalinfo : %s\n' % args.additionalinfo
+                has_additionalinfo = True
+            elif line.startswith('additionalinfo : ') and args.additionalinfo is None:
+                line = '#additionalinfo : %s\n' % args.additionalinfo
+            with open(tmp_yaml, 'a') as fd:
+                fd.writelines(line)
+        if args.additionalinfo is not None and not has_additionalinfo:
+            line = 'additionalinfo : %s\n' % args.additionalinfo
             with open(tmp_yaml, 'a') as fd:
                 fd.writelines(line)
 
@@ -159,6 +173,8 @@ parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
                     help='image id', required=False)
 parser.add_argument('--key_name', dest='key_name', default=None, action='store',
                     help='key to create instance', required=False)
+parser.add_argument('--ssh_user', dest='ssh_user', default='ec2-user', action='store',
+                    help='user for ssh login, default is ec2-user', required=False)
 parser.add_argument('--security_group_ids', dest='security_group_ids', default=None, action='store',
                     help='securitt group id', required=False)
 parser.add_argument('--subnet_id', dest='subnet_id', default=None, action='store',
@@ -177,6 +193,10 @@ parser.add_argument('--ltp_url', dest='ltp_url', default=None, action='store',
                     help='ltp rpm url', required=False)
 parser.add_argument('-g', dest='is_gcov', action='store_true',
                     help='optional,enable collect code coverage report, image should have gcov version kernel installed', required=False)
+parser.add_argument('--additionalinfo', dest='additionalinfo', default=None, action='store',
+                    help='for preview access instance', required=False)
+parser.add_argument('--profile', dest='profile_name', default='default', action='store',
+                    help='which crediential profile to use', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)

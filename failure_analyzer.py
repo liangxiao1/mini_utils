@@ -97,8 +97,10 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
         key_rate_list = []
         #LOG.info("##########%s",bug.identify_keywords)
         if case_name is not None:
-            if bug.case_name in case_name:
-                LOG.debug("%s previous failure found, check whether log match" % bug.case_name)
+            # if case_name is any_cases, it means the failure may can happen in any cases.
+            if bug.case_name not in case_name and 'any_cases' not in bug.case_name:
+                LOG.debug("%s previous failure found, check if log match" % bug.case_name)
+                continue
         if log_file is not None:
             find_it = False
             ave_rate = 0
@@ -123,7 +125,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
         LOG.info("Find similar failure, continue to check details...... %s", tmp_failure_ids)
     else:
         LOG.info("No similar failure found in keywords!")
-        return
+        return ('Please check cases manually' , case_name[:case_name.index('-')])
     tmp_ave_rate = 0
     final_failure_id = None
     final_failure_ids = {}
@@ -156,7 +158,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
         LOG.info("Check similar failure details: %s rate: %s", final_failure_id, tmp_ave_rate )
     else:
         LOG.info("No similar failure found in details!")
-        return
+        return ('Please check cases manually' , case_name[:case_name.index('-')])
     for bug in bugs:
         if final_failure_id == bug.id:
             failure_type = str(bug.failure_type)
@@ -167,14 +169,21 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
                     msg = 'blocker'
                 LOG.info("Product %sbug: %s:%s", msg, bug.bug_id, bug.bug_title)
                 LOG.debug("Product %sbug: %s:%s same rate:%s", msg, bug.bug_id, bug.bug_title,ave_rate)
+                tmp_result = "Product {}bug: {}:{}".format(msg, bug.bug_id, bug.bug_title)
+                return (tmp_result , case_name[:case_name.index('-')])
             elif 'env_bug' in failure_type:
                 LOG.info("Environment bug: %s same rate:%s", bug.identify_keywords,ave_rate)
                 LOG.debug("Environment bug: %s", bug.identify_keywords)
+                tmp_result = "Environment bug: internal id{}:{}".format(bug.id, bug.identify_keywords)
+                return (tmp_result , case_name[:case_name.index('-')])
             elif 'tool_bug' in failure_type:
                 LOG.info("Tool bug: %s", bug.identify_keywords)
                 LOG.info("Tool bug: %s same rate:%s", bug.identify_keywords,ave_rate)
+                tmp_result = "Tool bug: internal id{}:{}".format(bug.id, bug.identify_keywords)
+                return (tmp_result , case_name[:case_name.index('-')])
             else:
                 LOG.info("No similar failure found, I will check manually!")
+                return ('Please check cases manually' , case_name[:case_name.index('-')])
 
 if __name__ == "__main__":
     ARG_PARSER = argparse.ArgumentParser(description="Log checking from existing db")

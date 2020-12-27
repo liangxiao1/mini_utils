@@ -27,12 +27,55 @@ except ImportError:
     #from yaml import Loader, Dumper
 from yaml import load
 
-
 LOG_FORMAT = "%(levelname)s:FUNC-%(funcName)s:%(message)s"
 # pylint: disable=W1401
 BRANCH_REGEX = "RHEL-\d{1,2}.\d{1,2}"
 # pylint: disable=W1401
 KERNEL_REGEX = "\d{1,5}.\d{1,5}.\d{1,5}-\d{1,5}"
+
+
+def get_by_branch(branch_name):
+    '''
+    get ami_id by parse branchname
+    '''
+    try:
+        if ARGS.arch == 'aarch64':
+            ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
+        else:
+            ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
+        LOG.debug('branch_name: %s ami_id: %s', branch_name, ami_id)
+        return branch_name, ami_id
+    except KeyError:
+        LOG.debug('branch_name: {} not found'.format(branch_name))
+        guess_list = []
+        for i in KEYS_DATA.keys():
+            if branch_name.upper() in i.upper():
+                guess_list.append(i)
+        if len(guess_list) > 0:
+            LOG.debug('Try:{}?'.format(guess_list))
+
+        sys.exit(1)
+
+def guess_branch(s=None):
+    '''
+    check string and guess branch name
+    '''
+    if s.startswith('RHEL-7'):
+        branch_name = 'RHEL-7-latest'
+    elif s.startswith('RHEL-8'):
+        branch_name = 'RHEL-8-latest'
+    elif s.startswith('RHEL-9'):
+        branch_name = 'RHEL-9-latest'
+    elif s.startswith('RHEL-10'):
+        branch_name = 'RHEL-10-latest'
+    elif s.startswith('CentOS-Stream-8'):
+        branch_name = 'CentOS-Stream-8'
+    elif s.startswith('CentOS-Stream-9'):
+        branch_name = 'CentOS-Stream-9'
+    else:
+        branch_name = 'RHEL-latest'
+    LOG.debug('Your branch_name:%s', branch_name)
+    return branch_name
 
 def get_by_compose():
     '''
@@ -41,38 +84,12 @@ def get_by_compose():
     try:
         branch_name = re.findall(BRANCH_REGEX, ARGS.compose)[0]
     except IndexError:
-        if ARGS.compose.startswith('RHEL-7'):
-            branch_name = 'RHEL-7-latest'
-        elif ARGS.compose.startswith('RHEL-8'):
-            branch_name = 'RHEL-8-latest'
-        elif ARGS.compose.startswith('RHEL-9'):
-            branch_name = 'RHEL-9-latest'
-        elif ARGS.compose.startswith('RHEL-10'):
-            branch_name = 'RHEL-10-latest'
-        else:
-            branch_name = 'RHEL-latest'
-    LOG.debug('Your branch_name:%s', branch_name)
+        branch_name = guess_branch(ARGS.compose)
     try:
-        if ARGS.arch == 'aarch64':
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
-        else:
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
-    except KeyError:
-        if branch_name.startswith('RHEL-7'):
-            branch_name = 'RHEL-7-latest'
-        elif branch_name.startswith('RHEL-8'):
-            branch_name = 'RHEL-8-latest'
-        elif branch_name.startswith('RHEL-9'):
-            branch_name = 'RHEL-9-latest'
-        elif branch_name.startswith('RHEL-10'):
-            branch_name = 'RHEL-10-latest'
-        else:
-            branch_name = 'RHEL-latest'
-        if ARGS.arch == 'aarch64':
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
-        else:
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
-    LOG.debug('branch_name: %s ami_id: %s', branch_name, ami_id)
+        _, ami_id = get_by_branch(branch_name)
+    except Exception as err:
+        branch_name = guess_branch(branch_name)
+        _, ami_id = get_by_branch(branch_name)
     return branch_name, ami_id
 
 def get_by_kernel():
@@ -98,11 +115,7 @@ def get_by_kernel():
             branch_name = 'RHEL-8-latest'
         else:
             branch_name = 'RHEL-latest'
-    if ARGS.arch == 'aarch64':
-        ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
-    else:
-        ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
-    LOG.debug('branch_name: %s ami_id: %s', branch_name, ami_id)
+    _, ami_id = get_by_branch(branch_name)
     return branch_name, ami_id
 
 if __name__ == '__main__':
@@ -116,6 +129,8 @@ if __name__ == '__main__':
                             required=False)
     ARG_PARSER.add_argument('-c', dest='compose', action='store', default=None,
                             help='compose id, eg. RHEL-8.1.0-20191204.0', required=False)
+    ARG_PARSER.add_argument('-b', dest='branch_name', action='store', default=None,
+                            help='branch_name, eg. RHEL-8.1,CentOS-Stream-8', required=False)
     ARG_PARSER.add_argument('-f', dest='datafile', action='store', default=None,
                             help='branch map data file', required=True)
     ARG_PARSER.add_argument('-s', dest='select_filed', action='store', default=None,
@@ -143,7 +158,8 @@ if __name__ == '__main__':
         BRANCH_NAME, AMI_ID = get_by_compose()
     if ARGS.kernel:
         BRANCH_NAME, AMI_ID = get_by_kernel()
-
+    if ARGS.branch_name:
+        BRANCH_NAME, AMI_ID = get_by_branch(ARGS.branch_name)
 
     if ARGS.select_filed == "branch_name":
         #print(branch_name)
