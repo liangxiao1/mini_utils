@@ -93,18 +93,18 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
     else:
         bugs = session.query(Bugs).filter(Bugs.failure_status.has(Bugs.failure_id!=2)).order_by(Bugs.id)
     for bug in bugs:
-        LOG.debug("%s:%s", bug.id,bug.failure_status)
+        #LOG.debug("%s:%s", bug.id,bug.failure_status)
         key_rate_list = []
         #LOG.info("##########%s",bug.identify_keywords)
         if case_name is not None:
             # if case_name is any_cases, it means the failure may can happen in any cases.
             if bug.case_name not in case_name and 'any_cases' not in bug.case_name:
-                LOG.debug("%s previous failure found, check if log match" % bug.case_name)
                 continue
+            else:
+                LOG.debug("%s previous failure found, check if log match" % bug.case_name)
         if log_file is not None:
             find_it = False
             ave_rate = 0
-            #LOG.info(bug.identify_keywords.split('\n'))
             for baseline in bug.identify_keywords.split('\n'):
                 tmp_list = []
                 if baseline == '': continue
@@ -118,7 +118,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
             LOG.debug("Key final rate: %s", key_rate_list)
             if len(key_rate_list) > 0:
                 ave_rate = sum(key_rate_list)/len(key_rate_list)
-                if ave_rate > tmp_ave_rate and ave_rate > bottom_rate:
+                if ave_rate >= tmp_ave_rate and ave_rate >= bottom_rate:
                     tmp_ave_rate = ave_rate
                     tmp_failure_ids.append(bug.id)
     if tmp_ave_rate > bottom_rate:
@@ -129,10 +129,13 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
     tmp_ave_rate = 0
     final_failure_id = None
     final_failure_ids = {}
+    debug_rate_list = []
     for bug in bugs:
         for tmp_failure_id in tmp_failure_ids:
             if tmp_failure_id == bug.id:
+                LOG.debug("Check again: %s:%s", bug.id,bug.failure_status)
                 for baseline in bug.identify_debuglog.split('\n'):
+                    LOG.debug("Check line %s", baseline)
                     tmp_list = []
                     with open(log_file) as file_handler:
                         for line in file_handler.readlines():
@@ -148,6 +151,7 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
                     tmp_ave_rate = ave_rate
                     final_failure_id = bug.id
                     final_failure_ids[bug.id] = ave_rate
+                debug_rate_list = []
     if len(final_failure_ids) > 0:
         LOG.debug(final_failure_ids)
         final_failure_ids_list = sorted(final_failure_ids.items(), key = lambda kw:(kw[1], kw[0]))

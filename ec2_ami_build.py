@@ -594,13 +594,13 @@ def create_ami():
         except KeyboardInterrupt:
             print("C-c: Port forwarding stopped.")
             sys.exit(0)
-    if args.repo_url is None or len(args.repo_url) <= 10:
+    if args.repo_url is None or len(args.repo_url) <= 20:
         run_cmd(ssh_client, "sudo yum repolist --enabled")
         ret = run_cmd(ssh_client, "sudo yum search kernel-debug")
         if ret != 0:
             log.info("Try to enable default repo if no repo_url specified!")
             run_cmd(ssh_client, "sudo sed  -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/ami.repo")
-    if args.repo_url is not None and len(args.repo_url) > 10:
+    if args.repo_url is not None and len(args.repo_url) > 20:
         if args.proxy_url is not None:
             repo_temp = string.Template('''
 [repo$id]

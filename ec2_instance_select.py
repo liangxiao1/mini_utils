@@ -144,6 +144,9 @@ def instance_get():
         cfg_file = "ec2_instance_types.yaml"
     else:
         cfg_file = args.cfg_name
+    cfg_file_sum = 'sum_'+cfg_file
+    if os.path.exists(cfg_file_sum):
+        os.unlink(cfg_file_sum)
     for instance in pick_list:
         if args.skip_instance is not None:
             log.debug(args.skip_instance.split(','))
@@ -221,6 +224,8 @@ def instance_get():
             instance_str += instance_template.substitute(
                 instance_type=instance["InstanceType"], cpu_count=vcpu_str, mem_size=int(instance["MemoryInfo"]["SizeInMiB"])/1024, disk_count=disk_count, net_perf=net_perf, ipv6_support=ipv6_support)
             write_count += 1
+            with open(cfg_file_sum, 'a+') as fh:
+                fh.writelines(instance["InstanceType"]+',')
 
             if args.split_num is None:
                 continue
@@ -239,6 +244,7 @@ def instance_get():
                     wroten_count = write_count
     if args.split_num is None and write_count > 0:
         log.info("File saved to %s", cfg_file)
+        logging.info("Sum saved to {}".format(cfg_file_sum))
         fh = open(cfg_file, 'w')
         fh.writelines(instance_str)
         fh.close()
