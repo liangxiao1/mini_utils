@@ -144,7 +144,10 @@ def instance_get():
         cfg_file = "ec2_instance_types.yaml"
     else:
         cfg_file = args.cfg_name
-    cfg_file_sum = 'sum_'+cfg_file
+    cfg_file_name = os.path.basename(cfg_file)
+    cfg_file_dir = os.path.dirname(cfg_file)
+    cfg_file_sum = 'sum_'+cfg_file_name
+    cfg_file_sum = os.path.join(cfg_file_dir, cfg_file_sum)
     if os.path.exists(cfg_file_sum):
         os.unlink(cfg_file_sum)
     for instance in pick_list:
