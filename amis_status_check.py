@@ -65,6 +65,8 @@ parser.add_argument('--target', dest='target', action='store', default="aws",
                     help='optional, can be aws or aws-china or aws-us-gov', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true', default=False,
                     help='Run in debug mode', required=False)
+parser.add_argument('--profile', dest='profile', default='default', action='store',
+                    help='option, profile name in aws credential config file, default is default', required=False)
 args = parser.parse_args()
 log = logging.getLogger(__name__)
 if args.is_debug:
@@ -107,7 +109,8 @@ with open(json_file, 'r') as f:
 
 version = s[1]['release']['version']
 if ACCESS_KEY is None:
-    client = boto3.client('ec2',region_name='us-west-2')
+    session = boto3.session.Session(profile_name=args.profile, region_name='us-west-2')
+    client = session.client('ec2', region_name='us-west-2')
 else:
     client = boto3.client(
         'ec2',
@@ -128,7 +131,8 @@ result_list = []
 def check_item(i):
     bootable = False
     if ACCESS_KEY is None:
-        client = boto3.client('ec2', region_name=i['region'])
+        session = boto3.session.Session(profile_name=args.profile, region_name=i['region'])
+        client = session.client('ec2', region_name=i['region'])
     else:
         client = boto3.client(
             'ec2',
@@ -142,7 +146,8 @@ def check_item(i):
     else:
         instance_type = 'a1.large'
     if ACCESS_KEY is None:
-        ec2 = boto3.resource('ec2', region_name=i['region'])
+        session = boto3.session.Session(profile_name=args.profile, region_name=i['region'])
+        ec2 = session.resource('ec2', region_name=i['region'])
     else:
         ec2 = boto3.resource(
             'ec2',

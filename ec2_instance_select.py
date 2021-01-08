@@ -47,7 +47,8 @@ def deal_instancetype(x):
 
 def instance_get():
     instance_types_list = []
-    client = boto3.client('ec2', region_name=args.region)
+    session = boto3.session.Session(profile_name=args.profile, region_name=args.region)
+    client = session.client('ec2', region_name=args.region)
     filters = []
     if args.is_all:
         filters = []
@@ -258,7 +259,8 @@ def instance_get():
 
 class EC2VM:
     def __init__(self):
-        self.ec2 = boto3.resource('ec2', region_name=args.region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=args.region)
+        self.ec2 = self.session.resource('ec2', region_name=args.region)
 
         self.ami_id = args.ami_id
         self.key_name = args.key_name
@@ -331,6 +333,8 @@ parser.add_argument('--subnet_id', dest='subnet_id', default=None, action='store
                     help='required if specify -c', required=False)
 parser.add_argument('--zone', dest='zone', default=None, action='store',
                     help='required if specify -c ', required=False)
+parser.add_argument('--profile', dest='profile', default='default', action='store',
+                    help='option, profile name in aws credential config file, default is default', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)

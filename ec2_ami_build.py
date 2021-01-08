@@ -92,7 +92,8 @@ def reverse_forward_tunnel(server_port, remote_host, remote_port, transport):
 
 class EC2VM:
     def __init__(self):
-        self.ec2 = boto3.resource('ec2',region_name=args.region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=args.region)
+        self.ec2 = self.session.resource('ec2', region_name=args.region)
 
         self.ami_id = args.ami_id
         self.key_name = args.key_name
@@ -105,7 +106,8 @@ class EC2VM:
         '''
         check whether the vpc's default security group allow ssh connection
         '''
-        ec2 = boto3.resource('ec2', region_name=region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=region)
+        ec2 = self.session.resource('ec2', region_name=region)
         try:
             vpc = ec2.Vpc(vpcid)
             log.info("vpc init %s", vpcid)
@@ -135,10 +137,8 @@ class EC2VM:
                 log.info("sg init error %s",sg.id)
                 return False
     def find_subnet(self):
-        client = boto3.client(
-        'ec2',
-        region_name=self.region
-        )
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=self.region)
+        client = self.session.client('ec2', region_name=self.region)
         subnet_id = None
         subnets = client.describe_subnets()['Subnets']
         for subnet in subnets:
@@ -165,8 +165,8 @@ class EC2VM:
         '''
         create a new igw and attach to vpc
         '''
-
-        ec2 = boto3.resource('ec2', region_name=self.region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=self.region)
+        ec2 = self.session.resource('ec2', region_name=self.region)
         try:
             igw_new = client.create_internet_gateway(
                 DryRun=False
@@ -198,8 +198,9 @@ class EC2VM:
         '''
         update default route table
         '''
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=self.region)
+        ec2 = self.session.resource('ec2', region_name=self.region)
 
-        ec2 = boto3.resource('ec2', region_name=self.region)
         try:
             rts = vpc.route_tables.all()
             for i in rts:
@@ -238,9 +239,8 @@ class EC2VM:
         '''
         update default security group
         '''
-
-        ec2 = boto3.resource('ec2', region_name=self.region)
-
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=self.region)
+        ec2 = self.session.resource('ec2', region_name=self.region)
         try:
             sgs = vpc.security_groups.all()
             sg = None
@@ -326,8 +326,8 @@ class EC2VM:
         '''
         create a new subnet
         '''
-
-        ec2 = boto3.resource('ec2', region_name=self.region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=self.region)
+        ec2 = self.session.resource('ec2', region_name=self.region)
         try:
             subnet = vpc.create_subnet(
                 CidrBlock='192.111.1.0/24',
@@ -373,7 +373,8 @@ class EC2VM:
             log.info("Failed to create vpc %s", str(err))
         vpcid = vpc_new['Vpc']['VpcId']
         log.info("New vpc created %s", vpcid)
-        ec2 = boto3.resource('ec2', region_name=region)
+        self.session = boto3.session.Session(profile_name=args.profile, region_name=region)
+        ec2 = self.session.resource('ec2', region_name=region)
         try:
             vpc = ec2.Vpc(vpcid)
             log.info("vpc init %s", vpcid)
@@ -491,6 +492,8 @@ parser.add_argument('--user', dest='user', default="ec2-user", action='store',
                     help='user for ssh login, default is ec2-user', required=False)
 parser.add_argument('--keyfile', dest='keyfile', default=None, action='store',
                     help='keyfile for ssh login', required=True)
+parser.add_argument('--profile', dest='profile', default='default', action='store',
+                    help='option, profile name in aws credential config file, default is default', required=False)
 parser.add_argument('--key_name', dest='key_name', default=None, action='store',
                     help='key pairs name for create instance', required=True)
 parser.add_argument('--security_group_ids', dest='security_group_ids', default=None, action='store',
