@@ -301,9 +301,9 @@ parser = argparse.ArgumentParser(
     eg.  python /tmp/ec2_instance_select.py -c --ami-id xxxx --key_name xxxx --security_group_ids xxxx --subnet_id xxxx --zone us-west-2c -t i3.large -f /tmp/tt.yaml")
 parser.add_argument('-a', dest='is_all', action='store_true',
                     help='dump all instance types, default is only current generation', required=False)
-parser.add_argument('-x86', dest='is_x86', action='store_true',
+parser.add_argument('-x86_64', dest='is_x86', action='store_true',
                     help='only pick up x86 instance types', required=False)
-parser.add_argument('-arm', dest='is_arm', action='store_true',
+parser.add_argument('-aarch64', dest='is_arm', action='store_true',
                     help='only pick up arm instance types', required=False)
 parser.add_argument('-c', dest='check_live', action='store_true',
                     help='check whether instance can run in this region, ami_id,key_name,security_group_ids,subnet_id,instance_type and zone option required', required=False)
