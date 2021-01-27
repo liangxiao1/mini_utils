@@ -28,6 +28,7 @@ api = Api(app)
 TASKS = {
     'status': 'status of an instance',
     'stop': 'stop an instance',
+    'stop-hibernate': 'hibernate an instance',
     'start': 'start an instance',
     'reboot': 'stop and start an instance',
     'terminate': 'destroy an instance',
@@ -100,6 +101,30 @@ class Stop(Resource):
             instance = ec2.Instance(instanceid)
             instance.reload()
             instance.stop()
+            instance.wait_until_stopped()
+            instance.reload()
+            instance.state
+        except ClientError as err:
+            return {instanceid: '%s' % err}
+        return {'instanceid': instanceid,
+               'state': instance.state,
+               'IP':instance.public_ip_address}
+
+class StopHibernate(Resource):
+    def get(self):
+        # Default to 200 OK
+        args = parser.parse_args(strict=True)
+        instanceid = args['instanceid']
+        if instanceid == None:
+            return {'Error': "which instanceid do you get?"}
+        region = args['region']
+        if region == None:
+            region = 'us-west-2'
+        try:
+            ec2 = boto3.resource('ec2', region_name=region)
+            instance = ec2.Instance(instanceid)
+            instance.reload()
+            instance.stop(Hibernate=True)
             instance.wait_until_stopped()
             instance.reload()
             instance.state
@@ -261,6 +286,7 @@ class SSHKEY(Resource):
 api.add_resource(TasksList, '/ops','/')
 api.add_resource(Status, '/ops/status')
 api.add_resource(Stop, '/ops/stop')
+api.add_resource(StopHibernate, '/ops/stop-hibernate')
 api.add_resource(Start, '/ops/start')
 api.add_resource(Reboot, '/ops/reboot')
 api.add_resource(Terminate, '/ops/terminate')
