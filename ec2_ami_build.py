@@ -561,9 +561,11 @@ def create_ami():
                 vm.terminate()
                 sys.exit(1)
             if args.keyfile is None:
+                log.info('No key specified, use defaut!')
                 ssh_client.load_system_host_keys()
                 ssh_client.connect(vm.public_dns_name, username=args.user)
             else:
+                log.info('Use key: {}'.format(args.keyfile))
                 if not os.path.exists(args.keyfile):
                     log.error("{} not found".format(args.keyfile))
                     log.info("Terminate instance %s" % vm.id)

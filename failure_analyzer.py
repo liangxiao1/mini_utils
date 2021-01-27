@@ -176,14 +176,14 @@ def log_analyze(db_file=None, log_file=None, case_name=None, LOG=None, is_all=Fa
                 tmp_result = "Product {}bug: {}:{}".format(msg, bug.bug_id, bug.bug_title)
                 return (tmp_result , case_name[:case_name.index('-')])
             elif 'env_bug' in failure_type:
-                LOG.info("Environment bug: %s same rate:%s", bug.identify_keywords,ave_rate)
-                LOG.debug("Environment bug: %s", bug.identify_keywords)
-                tmp_result = "Environment bug: internal id{}:{}".format(bug.id, bug.identify_keywords)
+                LOG.info("Environment bug: %s same rate:%s", bug.bug_title,ave_rate)
+                LOG.debug("Environment bug: %s", bug.bug_title)
+                tmp_result = "Environment bug: internal id{}:{}".format(bug.id, bug.bug_title)
                 return (tmp_result , case_name[:case_name.index('-')])
             elif 'tool_bug' in failure_type:
-                LOG.info("Tool bug: %s", bug.identify_keywords)
-                LOG.info("Tool bug: %s same rate:%s", bug.identify_keywords,ave_rate)
-                tmp_result = "Tool bug: internal id{}:{}".format(bug.id, bug.identify_keywords)
+                LOG.info("Tool bug: %s", bug.bug_title)
+                LOG.info("Tool bug: %s same rate:%s", bug.bug_title,ave_rate)
+                tmp_result = "Tool bug: internal id{}:{}".format(bug.id, bug.bug_title)
                 return (tmp_result , case_name[:case_name.index('-')])
             else:
                 LOG.info("No similar failure found, I will check manually!")
