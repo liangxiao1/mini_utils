@@ -82,7 +82,7 @@ def get_fails(log_json):
     if len(final_result) > 0:
         with open(autocheck_log, 'w') as fh:
             for x in final_result:
-                fh.writelines("<Failed Cases:[{}] {}>\n".format(','.join(final_result[x]), x))
+                fh.writelines(r"- Failed Cases:[{}] {} \n".format(','.join(final_result[x]), x))
             LOG.info("saved to {}".format(autocheck_log))
     else:
         with open(autocheck_log, 'w') as fh:

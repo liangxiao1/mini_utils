@@ -710,6 +710,7 @@ gpgcheck=0
     if args.repo_url is not None:
         run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+    run_cmd(ssh_client, "sudo sed -i 's/#Environment=NM_CLOUD_SETUP_EC2=yes/Environment=NM_CLOUD_SETUP_EC2=yes/g' /usr/lib/systemd/system/nm-cloud-setup.service")
     if ret_val > 0:
         log.error("Failed to update system!")
         vm.terminate()

@@ -59,8 +59,8 @@ parser.add_argument('--task_url', dest='task_url', action='store',
                     help='image build task url', required=True)
 parser.add_argument('--dir', dest='dir', action='store', default='/tmp',
                     help='save files to dir', required=False)
-parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="data/dva_key.yaml",
-                    help='credential file, default data/dva_key.yaml', required=False)
+parser.add_argument('--tokenfile', dest='tokenfile', action='store', default="/etc/dva_keys.yaml",
+                    help='credential file, default /etc/dva_keys.yaml', required=False)
 parser.add_argument('--target', dest='target', action='store', default="aws",
                     help='optional, can be aws or aws-china or aws-us-gov', required=False)
 parser.add_argument('-d', dest='is_debug', action='store_true', default=False,
