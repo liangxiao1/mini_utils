@@ -656,7 +656,7 @@ gpgcheck=0
             log.info("delete tempfile %s", tmp_repo_file)
 
         for i in range(1,20):
-            ret_val = run_cmd(ssh_client, 'sudo yum update -y')
+            ret_val = run_cmd(ssh_client, 'sudo yum update -y --allowerasing')
             if ret_val > 0:
                 log.error("Failed to update system, try again! max:20 now:%s" % i)
                 time.sleep(5)
@@ -710,7 +710,9 @@ gpgcheck=0
     if args.repo_url is not None:
         run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
-    run_cmd(ssh_client, "sudo sed -i 's/#Environment=NM_CLOUD_SETUP_EC2=yes/Environment=NM_CLOUD_SETUP_EC2=yes/g' /usr/lib/systemd/system/nm-cloud-setup.service")
+    run_cmd(ssh_client, "sudo mkdir -p /etc/systemd/system/nm-cloud-setup.service.d")
+    run_cmd(ssh_client, "sudo bash -c \"echo -e '[Service]\nEnvironment=NM_CLOUD_SETUP_EC2=yes\n' > /etc/systemd/system/nm-cloud-setup.service.d/override.conf\"")
+    #run_cmd(ssh_client, "sudo sed -i 's/#Environment=NM_CLOUD_SETUP_EC2=yes/Environment=NM_CLOUD_SETUP_EC2=yes/g' /usr/lib/systemd/system/nm-cloud-setup.service")
     if ret_val > 0:
         log.error("Failed to update system!")
         vm.terminate()

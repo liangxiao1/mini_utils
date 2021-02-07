@@ -80,6 +80,7 @@ credential_file_format = "aws-us-gov: ['ec2_access_key','ec2_secret_key','subscr
 if not os.path.exists(credential_file):
     log.error("%s not found, please create it and add your key into it as the following format, multilines support if have" % credential_file)
     log.info(credential_file_format)
+    ACCESS_KEY = None
 else:
     with open(credential_file,'r') as fh:
          keys_data = load(fh, Loader=Loader)
