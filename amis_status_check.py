@@ -109,15 +109,16 @@ with open(json_file, 'r') as f:
     s = json.load(f)
 
 version = s[1]['release']['version']
+default_regions = {"aws-china":"cn-northwest-1","aws":"us-west-2","aws-us-gov":"us-gov-west-1"}
 if ACCESS_KEY is None:
-    session = boto3.session.Session(profile_name=args.profile, region_name='us-west-2')
+    session = boto3.session.Session(profile_name=args.profile, region_name=default_regions[args.target])
     client = session.client('ec2', region_name='us-west-2')
 else:
     client = boto3.client(
         'ec2',
         aws_access_key_id=ACCESS_KEY,
         aws_secret_access_key=SECRET_KEY,
-        region_name='us-west-2',
+        region_name=default_regions[args.target],
     )
 region_list = client.describe_regions()['Regions']
 regionids = []

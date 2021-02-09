@@ -656,10 +656,12 @@ gpgcheck=0
             log.info("delete tempfile %s", tmp_repo_file)
 
         for i in range(1,20):
-            ret_val = run_cmd(ssh_client, 'sudo yum update -y --allowerasing')
+            ret_val = run_cmd(ssh_client, 'sudo yum update -y')
             if ret_val > 0:
                 log.error("Failed to update system, try again! max:20 now:%s" % i)
+                ret_val = run_cmd(ssh_client, 'sudo yum update -y --allowerasing')
                 time.sleep(5)
+            if ret_val > 0:
                 continue
             break
         if ret_val > 0:
