@@ -86,6 +86,7 @@ def setup_avocado():
 
     with open(ec2_env_yaml, 'r') as fh:
         has_additionalinfo = False
+        has_profile_name = False
         for line in fh.readlines():
             if line.startswith('ami_id :'):
                 line = 'ami_id : %s\n' % args.ami_id
@@ -111,6 +112,7 @@ def setup_avocado():
                 line = 'code_cover : %s\n' % args.is_gcov
             if line.startswith('profile_name : '):
                 line = 'profile_name : %s\n' % args.profile_name
+                has_profile_name = True
             if line.startswith('additionalinfo : ') and args.additionalinfo is not None:
                 line = 'additionalinfo : %s\n' % args.additionalinfo
                 has_additionalinfo = True
@@ -120,6 +122,10 @@ def setup_avocado():
                 fd.writelines(line)
         if args.additionalinfo is not None and not has_additionalinfo:
             line = 'additionalinfo : %s\n' % args.additionalinfo
+            with open(tmp_yaml, 'a') as fd:
+                fd.writelines(line)
+        if args.profile_name is not None and not has_profile_name:
+            line = 'profile_name : %s\n' % args.profile_name
             with open(tmp_yaml, 'a') as fd:
                 fd.writelines(line)
 

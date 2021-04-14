@@ -63,6 +63,13 @@ def instance_get():
             },
         ]
         log.info("Filter only current generation instance types")
+    if args.max_mem is not None:
+        filters.append({
+                'Name': 'memory-info.size-in-mib',
+                'Values': [
+                    str(int(args.max_mem)*1024),
+                ]
+            })
     tmp_dict_all = client.describe_instance_types(Filters=filters)
     #tmp_dict_all = client.describe_instance_types()
     i = 0
@@ -267,7 +274,7 @@ class EC2VM:
         self.security_group_ids = args.security_group_ids
         self.subnet_id = args.subnet_id
         self.instance_type = None
-        self.zone = args.zone
+        #self.zone = args.zone
 
     def create(self, wait=True):
         try:
@@ -281,17 +288,17 @@ class EC2VM:
                 SubnetId=self.subnet_id,
                 MaxCount=1,
                 MinCount=1,
-                Placement={
-                    'AvailabilityZone': self.zone,
-                },
+                #Placement={
+                #    'AvailabilityZone': self.zone,
+                #},
                 DryRun=True,
             )[0]
 
         except ClientError as err:
             if 'DryRunOperation' in str(err):
-                logging.info("%s can create in %s", self.instance_type, self.zone)
+                logging.info("%s can create in %s", self.instance_type, args.region)
                 return True
-            logging.error("%s can not create in %s : %s", self.instance_type, self.zone, err)
+            logging.error("%s can not create in %s : %s", self.instance_type, args.region, err)
             return False
         return False
 
@@ -311,6 +318,8 @@ parser.add_argument('-d', dest='is_debug', action='store_true',
                     help='run in debug mode', required=False)
 parser.add_argument('-f', dest='cfg_name', default=None, action='store',
                     help='generate and save cfg file, like ec2_instance_types.yaml', required=False)
+parser.add_argument('--max_mem', dest='max_mem', action='store',
+                    required=False, help='max memory in GiB')
 parser.add_argument('--region', dest='region', action='store',
                     help='region to query, default is us-gov-west-1', required=False)
 parser.add_argument('-r', dest='random_pick', default=None, action='store_true',

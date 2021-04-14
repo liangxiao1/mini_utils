@@ -96,7 +96,7 @@ class EC2Case(DB_BASE):
     ami_id = Column(String(50))
     instance_type = Column(String(50))
     compose_id = Column(String(50))
-    pkg_ver = Column(String(50))
+    pkg_ver = Column(String(100))
     branch_name = Column(String(50))
     testrun = Column(String(50))
     case_name = Column(String(50))
