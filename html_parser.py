@@ -22,6 +22,7 @@ parser.add_argument('--must_key',dest='must_key',action='store',help='must have 
 parser.add_argument('--notkeyword',dest='notkeyword',action='store',help='specify keyword you are not looking for',default=None,required=False)
 parser.add_argument('--tag',dest='tag',action='store',help='optional specify prefix tag, default is JOB_',default='JOB_',required=False)
 parser.add_argument('--name',dest='name',action='store',help='optional specify suffix name, default is PKGURL',default='PKGURL',required=False)
+parser.add_argument('--field',dest='check_field',action='store',help='href|text, default is href',default='href',required=False)
 parser.add_argument('--dir', dest='file_dir', action='store', default='/tmp',
                             help='optional, output location, default is /tmp', required=False)
 args=parser.parse_args()
@@ -71,27 +72,37 @@ for i in s:
     if notkeywords == None:
         if keywords != None:
             for keyword in keywords.split(','):
-                if re.match('.*'+keyword+'.*', i['href']) != None:
+                if re.match('.*'+keyword+'.*', i['href']) != None and args.check_field == 'href':
                     log.info("found %s", i['href'])
                     results.append(i['href'])
+                elif re.match('.*'+keyword+'.*', i.get_text()) != None:
+                    log.info("found %s", i.get_text())
+                    results.append(i.get_text())
     else:
         check_notkey = True
         for notkeyword in notkeywords.split(','):
-            if re.match('.*'+notkeyword+'.*', i['href']) != None :
+            if re.match('.*'+notkeyword+'.*', i['href']) != None and args.check_field == 'href':
+                check_notkey = False
+            elif re.match('.*'+notkeyword+'.*', i.get_text()) != None:
                 check_notkey = False
         if must_keys != None:
             for must_key in must_keys.split(','):
-                if re.match('.*'+must_key+'.*', i['href']) == None :
+                if re.match('.*'+must_key+'.*', i['href']) == None and args.check_field == 'href':
+                    check_notkey = False
+                elif re.match('.*'+must_key+'.*', i.get_text()) == None :
                     check_notkey = False
         if keywords != None:
             for keyword in keywords.split(','):
-                if re.match('.*'+keyword+'.*', i['href']) != None and check_notkey:
+                if re.match('.*'+keyword+'.*', i['href']) != None and check_notkey and args.check_field == 'href':
                     log.info("found %s", i['href'])
                     results.append(i['href'])
+                elif re.match('.*'+keyword+'.*', i.get_text()) != None and check_notkey:
+                    log.info("found %s", i.get_text())
+                    results.append(i.get_text())
 
 with open(JOB_ENV_YAML, 'a') as fh:
-    fh.write("%s%s: %s\n"% (tag, name, ','.join(results)))
+    fh.write("%s%s: '%s'\n"% (tag, name, ','.join(results)))
     log.info("Write to %s", JOB_ENV_YAML)
 with open(JOB_ENV_TXT, 'a') as fh:
-    fh.write("%s%s=%s\n"% (tag, name,','.join(results)))
+    fh.write("%s%s='%s'\n"% (tag, name,','.join(results)))
     log.info("Write to %s", JOB_ENV_TXT)

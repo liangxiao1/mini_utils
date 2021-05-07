@@ -82,7 +82,7 @@ def get_by_compose():
     get ami_id by parse compose id
     '''
     try:
-        branch_name = re.findall(BRANCH_REGEX, ARGS.compose)[0]
+        branch_name = re.findall(BRANCH_REGEX, ARGS.compose.upper())[0]
     except IndexError:
         branch_name = guess_branch(ARGS.compose)
     try:

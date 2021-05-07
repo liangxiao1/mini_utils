@@ -707,6 +707,9 @@ gpgcheck=0
                 'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
     run_cmd(ssh_client, 'sudo yum install -y python3')
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
+    run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
+    run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
+    run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
     if args.cmds is not None:
         run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
     if args.repo_url is not None:
