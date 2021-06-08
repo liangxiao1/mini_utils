@@ -137,6 +137,13 @@ def instance_get():
         for x in instances_type:
             pick_list.extend(filter(lambda y: y.startswith(x), instance_list))
         log.info('instance type matched: %s', pick_list)
+    elif args.instances_end is not None:
+        instances_type = map(
+            deal_instancetype, args.instances_end.split(','))
+        log.info("instance type specified:%s", instances_type)
+        for x in instances_type:
+            pick_list.extend(filter(lambda y: y.endswith(x), instance_list))
+        log.info('instance type matched: %s', pick_list)
     elif args.is_all:
         log.info("Pick all instance types")
         pick_list = instance_list
@@ -328,6 +335,8 @@ parser.add_argument('-s', dest='split_num', action='store',
                     required=False, help='split cfg file into severa; files which have how many instances in each file')
 parser.add_argument('-t', dest='instances', action='store', default=None, required=False,
                     help='select instances from specified type, can choose multi like c5a,m5d')
+parser.add_argument('-t_end', dest='instances_end', action='store', default=None, required=False,
+                    help='select instances name end with specifc words')
 parser.add_argument('--skip_instance', dest='skip_instance', action='store',
                     help='instance type to skip, seperated by ","', required=False)
 parser.add_argument('--num_instances', dest='num_instances', action='store',

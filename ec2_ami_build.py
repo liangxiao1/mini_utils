@@ -571,14 +571,32 @@ def create_ami():
                     log.info("Terminate instance %s" % vm.id)
                     vm.terminate()
                     sys.exit(1)
-                ssh_client.connect(
-                    vm.public_dns_name,
-                    username=args.user,
-                    key_filename=args.keyfile,
-                    look_for_keys=False,
-                    timeout=180
-                )
-            break
+                exception_list=[]
+                rmt_keyfile = args.keyfile
+                rmt_node = vm.public_dns_name
+                rmt_user = args.user
+                is_connected = False
+                pkey_RSAKey = paramiko.RSAKey.from_private_key_file(rmt_keyfile)
+                pkey_RSASHA256Key = paramiko.RSASHA256Key.from_private_key_file(rmt_keyfile)
+                pkey_RSASHA512Key = paramiko.RSASHA512Key.from_private_key_file(rmt_keyfile)
+                for pkey in [pkey_RSAKey, pkey_RSASHA256Key, pkey_RSASHA512Key]:
+                    try:
+                        log.info("Try to use {}".format(pkey.get_name()))
+                        ssh_client.connect(
+                            rmt_node,
+                            username=rmt_user,
+                            #key_filename=rmt_keyfile,
+                            pkey=pkey,
+                            look_for_keys=False,
+                            timeout=60
+                        )
+                        is_connected = True
+                        break
+                    except Exception as e:
+                        exception_list.append(e)
+                if is_connected:
+                    break
+                raise Exception(exception_list)
         except Exception as e:
             log.info("*** Failed to connect to %s:%d: %r" %
                      (vm.public_dns_name, default_port, e))
@@ -670,7 +688,7 @@ gpgcheck=0
             sys.exit(ret_val)
     if args.pkgs is not None:
         for i in range(1,50):
-            ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
+            ret_val = run_cmd(ssh_client, 'sudo yum install -y --skip-broken %s' % args.pkgs.replace(',',' '))
             if ret_val > 0:
                 log.error("Failed to update system, try again! max:50 now:%s" % i)
                 time.sleep(5)
@@ -710,6 +728,10 @@ gpgcheck=0
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
     run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
+    # clean journal, message and cloudinit log
+    run_cmd(ssh_client, 'sudo journalctl --vacuum-time=1d')
+    run_cmd(ssh_client, 'sudo cat /dev/null > /var/log/messages')
+    run_cmd(ssh_client, 'sudo cat /dev/null > /var/log/cloud-init.log')
     if args.cmds is not None:
         run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
     if args.repo_url is not None:
