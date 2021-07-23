@@ -653,6 +653,8 @@ gpgcheck=0
         with open(tmp_repo_file, 'r') as fh:
             for line in fh.readlines():
                 log.debug(line)
+        cmd = "sudo yum remove -y $(rpm -qa|grep -v $(uname -r)|grep kernel-core|head -1)"
+        run_cmd(ssh_client, cmd)
         run_cmd(ssh_client, 'sudo yum remove -y kernel-debug')
         run_cmd(ssh_client, 'sudo yum remove -y kernel-debug-core kernel-debug-modules')
         run_cmd(ssh_client, 'sudo rm -rf /etc/yum.repos.d/ami.repo')
@@ -688,11 +690,14 @@ gpgcheck=0
             sys.exit(ret_val)
     if args.pkgs is not None:
         for i in range(1,50):
-            ret_val = run_cmd(ssh_client, 'sudo yum install -y --skip-broken %s' % args.pkgs.replace(',',' '))
+            ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
             if ret_val > 0:
                 log.error("Failed to update system, try again! max:50 now:%s" % i)
+                ret_val = run_cmd(ssh_client, 'sudo yum install -y --allowerasing %s' % args.pkgs.replace(',',' '))
+                ret_val = run_cmd(ssh_client, 'sudo yum install -y --skip-broken %s' % args.pkgs.replace(',',' '))
                 time.sleep(5)
-                continue
+                if ret_val > 0:
+                    continue
             break
         if ret_val > 0:
             log.error("Failed to update system again, exit!")
@@ -711,6 +716,7 @@ gpgcheck=0
             ftp_client.put("/tmp/%s" % pkg_name, "/tmp/%s" % pkg_name)
             pkg_names += ' /tmp/%s' % pkg_name
             if 'cloud-init' in pkg_name:
+                run_cmd(ssh_client, 'sudo rpm -e cloud-init')
                 run_cmd(ssh_client, 'sudo  rm -rf /var/lib/cloud/*')
                 run_cmd(ssh_client, 'sudo  rm -rf /var/run/cloud-init/')
                 run_cmd(ssh_client, 'sudo rpm -e %s' % pkg_name_no_ver)
@@ -720,9 +726,15 @@ gpgcheck=0
         if ret_val > 0:
             cmd = 'sudo rpm -ivh %s --force' % pkg_names
             ret_val = run_cmd(ssh_client, cmd)
-        if 'cloud-init' in pkg_name:
-            stdin, stdout, stderr = ssh_client.exec_command(
-                'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
+        #if 'cloud-init' in pkg_name:
+        #    #stdin, stdout, stderr = ssh_client.exec_command(
+        #    #    'sudo  /bin/cp -f /etc/cloud/cloud.cfg.rpmsave /etc/cloud/cloud.cfg', timeout=1800)
+        #    cmd = "sudo sed -i 's/cloud-user/ec2-user/' /etc/cloud/cloud.cfg"
+        #    run_cmd(ssh_client, cmd)
+    cmd = "[[ -f /etc/cloud/cloud.cfg.rpmnew ]] && sudo /bin/cp -f /etc/cloud/cloud.cfg.rpmnew /etc/cloud/cloud.cfg"
+    run_cmd(ssh_client, cmd)
+    cmd = "sudo sed -i 's/cloud-user/ec2-user/' /etc/cloud/cloud.cfg"
+    run_cmd(ssh_client, cmd)
     run_cmd(ssh_client, 'sudo yum install -y python3')
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
@@ -730,8 +742,8 @@ gpgcheck=0
     run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
     # clean journal, message and cloudinit log
     run_cmd(ssh_client, 'sudo journalctl --vacuum-time=1d')
-    run_cmd(ssh_client, 'sudo cat /dev/null > /var/log/messages')
-    run_cmd(ssh_client, 'sudo cat /dev/null > /var/log/cloud-init.log')
+    run_cmd(ssh_client, "sudo bash -c \"cat /dev/null > /var/log/messages\"")
+    run_cmd(ssh_client, "sudo bash -c \"cat /dev/null > /var/log/cloud-init.log\"")
     if args.cmds is not None:
         run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
     if args.repo_url is not None:

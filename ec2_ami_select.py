@@ -73,7 +73,8 @@ def guess_branch(s=None):
     elif s.startswith('CentOS-Stream-9'):
         branch_name = 'CentOS-Stream-9'
     else:
-        branch_name = 'RHEL-latest'
+        LOG.info("not found matched branch, try to check kernel")
+        branch_name, _ = get_by_kernel(pkg_info=s)
     LOG.debug('Your branch_name:%s', branch_name)
     return branch_name
 
@@ -92,13 +93,20 @@ def get_by_compose():
         _, ami_id = get_by_branch(branch_name)
     return branch_name, ami_id
 
-def get_by_kernel():
+def get_by_kernel(pkg_info=None):
     '''
     get ami_id by parse kernel string
     '''
     LOG.debug("Check by kernel version......")
     branch_name = None
-    kernel = re.findall(KERNEL_REGEX, ARGS.kernel)[0]
+    kernel = re.findall(KERNEL_REGEX, pkg_info)
+    if kernel:
+        kernel=re.findall(KERNEL_REGEX, pkg_info)[0]
+    else:
+        branch_name = 'RHEL-latest'
+        LOG.info('No kernel format found, use {}'.format(branch_name))
+        _, ami_id = get_by_branch(branch_name)
+        return branch_name, ami_id
     LOG.debug('Your kernel version:%s', kernel)
     for branch in KEYS_DATA.keys():
         if KEYS_DATA[branch]['kernel'] == kernel:
@@ -113,6 +121,8 @@ def get_by_kernel():
             branch_name = 'RHEL-7-latest'
         elif kernel.startswith('4.'):
             branch_name = 'RHEL-8-latest'
+        elif kernel.startswith('5'):
+            branch_name = 'RHEL-9-latest'
         else:
             branch_name = 'RHEL-latest'
     _, ami_id = get_by_branch(branch_name)
@@ -157,7 +167,7 @@ if __name__ == '__main__':
     if ARGS.compose:
         BRANCH_NAME, AMI_ID = get_by_compose()
     if ARGS.kernel:
-        BRANCH_NAME, AMI_ID = get_by_kernel()
+        BRANCH_NAME, AMI_ID = get_by_kernel(pkg_info=ARGS.kernel)
     if ARGS.branch_name:
         BRANCH_NAME, AMI_ID = get_by_branch(ARGS.branch_name)
 
