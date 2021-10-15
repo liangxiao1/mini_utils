@@ -60,13 +60,13 @@ def guess_branch(s=None):
     '''
     check string and guess branch name
     '''
-    if s.startswith('RHEL-7'):
+    if s.startswith('RHEL-7') or 'rhel-7' in s:
         branch_name = 'RHEL-7-latest'
-    elif s.startswith('RHEL-8'):
+    elif s.startswith('RHEL-8') or 'rhel-8' in s:
         branch_name = 'RHEL-8-latest'
-    elif s.startswith('RHEL-9'):
+    elif s.startswith('RHEL-9') or 'rhel-9' in s:
         branch_name = 'RHEL-9-latest'
-    elif s.startswith('RHEL-10'):
+    elif s.startswith('RHEL-10') or 'rhel-10' in s:
         branch_name = 'RHEL-10-latest'
     elif s.startswith('CentOS-Stream-8'):
         branch_name = 'CentOS-Stream-8'
@@ -164,8 +164,10 @@ if __name__ == '__main__':
     with open(MAP_FILE, 'r') as fh:
         KEYS_DATA = load(fh, Loader=Loader)
     LOG.debug(KEYS_DATA)
-    if ARGS.compose:
+    if ARGS.compose and 'kernel' not in ARGS.compose:
         BRANCH_NAME, AMI_ID = get_by_compose()
+    if ARGS.compose and 'kernel' in ARGS.compose:
+        BRANCH_NAME, AMI_ID = get_by_kernel(pkg_info=ARGS.compose)
     if ARGS.kernel:
         BRANCH_NAME, AMI_ID = get_by_kernel(pkg_info=ARGS.kernel)
     if ARGS.branch_name:

@@ -416,10 +416,10 @@ class EC2VM:
                 ImageId=self.ami_id,
                 InstanceType=self.instance_type,
                 KeyName=self.key_name,
-                SecurityGroupIds=[
-                    self.security_group_ids,
-                ],
-                SubnetId=self.subnet_id,
+                #SecurityGroupIds=[
+                #    self.security_group_ids,
+                #],
+                #SubnetId=self.subnet_id,
                 MaxCount=1,
                 MinCount=1,
                 #Placement={
@@ -436,7 +436,17 @@ class EC2VM:
                             },
                         ]
                     },
-                ]
+                ],
+                NetworkInterfaces=[
+                        {
+                            'AssociatePublicIpAddress': True,
+                            'DeviceIndex': 0,
+                            'SubnetId': self.subnet_id,
+                            'Groups': [
+                                 self.security_group_ids,
+                             ],
+                        },
+                    ],
             )[0]
 
         except ClientError as err:
