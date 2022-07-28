@@ -745,7 +745,7 @@ gpgcheck=0
     run_cmd(ssh_client, cmd)
     cmd = "sudo sed -i 's/cloud-user/ec2-user/' /etc/cloud/cloud.cfg"
     run_cmd(ssh_client, cmd)
-    run_cmd(ssh_client, 'sudo yum install -y python3')
+    run_cmd(ssh_client, 'sudo yum install -y python3 python3-pip')
     run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
