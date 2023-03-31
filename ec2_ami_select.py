@@ -31,7 +31,8 @@ LOG_FORMAT = "%(levelname)s:FUNC-%(funcName)s:%(message)s"
 # pylint: disable=W1401
 BRANCH_REGEX = "RHEL-\d{1,2}.\d{1,2}"
 # pylint: disable=W1401
-KERNEL_REGEX = "\d{1,5}.\d{1,5}.\d{1,5}-\d{1,5}"
+KERNEL_REGEX = "\d{1,7}.\d{1,7}.\d{1,7}-\d{1,7}"
+PKG_REGEX = 'el\d+_\d+'
 
 
 def get_by_branch(branch_name):
@@ -74,7 +75,7 @@ def guess_branch(s=None):
         branch_name = 'CentOS-Stream-9'
     else:
         LOG.info("not found matched branch, try to check kernel")
-        branch_name, _ = get_by_kernel(pkg_info=s)
+        branch_name, _ = get_by_pkg(pkg_info=s)
     LOG.debug('Your branch_name:%s', branch_name)
     return branch_name
 
@@ -93,7 +94,7 @@ def get_by_compose():
         _, ami_id = get_by_branch(branch_name)
     return branch_name, ami_id
 
-def get_by_kernel(pkg_info=None):
+def get_by_pkg(pkg_info=None):
     '''
     get ami_id by parse kernel string
     '''
@@ -103,8 +104,17 @@ def get_by_kernel(pkg_info=None):
     if kernel:
         kernel=re.findall(KERNEL_REGEX, pkg_info)[0]
     else:
-        branch_name = 'RHEL-latest'
-        LOG.info('No kernel format found, use {}'.format(branch_name))
+        pkg = re.findall(PKG_REGEX, pkg_info)
+        if pkg:
+            pkg = pkg[0]
+            x_version = re.findall('\d+', pkg)[0]
+            y_version = re.findall('\d+', pkg)[1]
+            branch_name = 'RHEL-{}.{}'.format(x_version, y_version)
+        else:
+            pkg = re.findall('el\d+', pkg_info)
+            x_version = re.findall('\d+', pkg)[0]
+            branch_name = 'RHEL-{}-latest'.format(x_version)
+        LOG.info('No kernel format found, try from elx_y {}'.format(branch_name))
         _, ami_id = get_by_branch(branch_name)
         return branch_name, ami_id
     LOG.debug('Your kernel version:%s', kernel)
@@ -167,9 +177,9 @@ if __name__ == '__main__':
     if ARGS.compose and 'kernel' not in ARGS.compose:
         BRANCH_NAME, AMI_ID = get_by_compose()
     if ARGS.compose and 'kernel' in ARGS.compose:
-        BRANCH_NAME, AMI_ID = get_by_kernel(pkg_info=ARGS.compose)
+        BRANCH_NAME, AMI_ID = get_by_pkg(pkg_info=ARGS.compose)
     if ARGS.kernel:
-        BRANCH_NAME, AMI_ID = get_by_kernel(pkg_info=ARGS.kernel)
+        BRANCH_NAME, AMI_ID = get_by_pkg(pkg_info=ARGS.kernel)
     if ARGS.branch_name:
         BRANCH_NAME, AMI_ID = get_by_branch(ARGS.branch_name)
 

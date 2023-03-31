@@ -538,6 +538,7 @@ else:
 
 
 def create_ami():
+    ret_val = 0
     signal.signal(signal.SIGHUP, sig_handler)
     signal.signal(signal.SIGINT, sig_handler)
     signal.signal(signal.SIGQUIT, sig_handler)
@@ -632,6 +633,8 @@ def create_ami():
         ret = run_cmd(ssh_client, "sudo yum search kernel-debug")
         if ret != 0:
             log.info("Try to enable default repo if no repo_url specified!")
+            #run_cmd(ssh_client, "sudo yum -q -y --disablerepo=* --enablerepo=repo*")
+            run_cmd(ssh_client, "sudo yum  config-manager --set-disabled * --set-enabled repo*")
             run_cmd(ssh_client, "sudo sed  -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/ami.repo")
     if args.repo_url is not None and len(args.repo_url) > 20:
         if args.proxy_url is not None:
@@ -665,6 +668,7 @@ gpgcheck=0
                 log.debug(line)
         cmd = "sudo yum remove -y $(rpm -qa|grep -v $(uname -r)|grep kernel-core|head -1)"
         run_cmd(ssh_client, cmd)
+        run_cmd(ssh_client, 'sudo rm -rf /boot/initramfs*rescue*')
         run_cmd(ssh_client, 'sudo yum remove -y kernel-debug')
         run_cmd(ssh_client, 'sudo yum remove -y kernel-debug-core kernel-debug-modules')
         run_cmd(ssh_client, 'sudo rm -rf /etc/yum.repos.d/ami.repo')
@@ -734,7 +738,7 @@ gpgcheck=0
         cmd = 'sudo yum localinstall -y %s' % pkg_names
         ret_val = run_cmd(ssh_client, cmd)
         if ret_val > 0:
-            cmd = 'sudo rpm -ivh %s --force' % pkg_names
+            cmd = 'sudo rpm -ivh %s --force --nodeps' % pkg_names
             ret_val = run_cmd(ssh_client, cmd)
         #if 'cloud-init' in pkg_name:
         #    #stdin, stdout, stderr = ssh_client.exec_command(
@@ -743,10 +747,8 @@ gpgcheck=0
         #    run_cmd(ssh_client, cmd)
     cmd = "[[ -f /etc/cloud/cloud.cfg.rpmnew ]] && sudo /bin/cp -f /etc/cloud/cloud.cfg.rpmnew /etc/cloud/cloud.cfg"
     run_cmd(ssh_client, cmd)
-    cmd = "sudo sed -i 's/cloud-user/ec2-user/' /etc/cloud/cloud.cfg"
-    run_cmd(ssh_client, cmd)
     run_cmd(ssh_client, 'sudo yum install -y python3 python3-pip')
-    run_cmd(ssh_client, 'sudo pip3 install -U os-tests')
+    run_cmd(ssh_client, 'sudo pip3 install -U os-tests==0.1.6')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
     run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
     run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
@@ -754,9 +756,9 @@ gpgcheck=0
     run_cmd(ssh_client, 'sudo journalctl --vacuum-time=1d')
     run_cmd(ssh_client, "sudo bash -c \"cat /dev/null > /var/log/messages\"")
     run_cmd(ssh_client, "sudo bash -c \"cat /dev/null > /var/log/cloud-init.log\"")
-    if args.cmds is not None:
+    if args.cmds:
         run_cmd(ssh_client, 'sudo {}'.format(args.cmds))
-    if args.repo_url is not None:
+    if args.repo_url:
         run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
     run_cmd(ssh_client, "sudo mkdir -p /etc/systemd/system/nm-cloud-setup.service.d")
