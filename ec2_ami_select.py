@@ -61,13 +61,13 @@ def guess_branch(s=None):
     '''
     check string and guess branch name
     '''
-    if s.startswith('RHEL-7') or 'rhel-7' in s:
+    if s.startswith('RHEL-7') or 'rhel-7' in s or 'el7' in s:
         branch_name = 'RHEL-7-latest'
-    elif s.startswith('RHEL-8') or 'rhel-8' in s:
+    elif s.startswith('RHEL-8') or 'rhel-8' in s or 'el8' in s:
         branch_name = 'RHEL-8-latest'
-    elif s.startswith('RHEL-9') or 'rhel-9' in s:
+    elif s.startswith('RHEL-9') or 'rhel-9' in s or 'el9' in s:
         branch_name = 'RHEL-9-latest'
-    elif s.startswith('RHEL-10') or 'rhel-10' in s:
+    elif s.startswith('RHEL-10') or 'rhel-10' in s or 'el10' in s:
         branch_name = 'RHEL-10-latest'
     elif s.startswith('CentOS-Stream-8'):
         branch_name = 'CentOS-Stream-8'

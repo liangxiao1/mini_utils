@@ -1,0 +1,72 @@
+# Ansible playbook to set up xen host in Fedora 28+
+# build xen requires python3-devel acpica-tools uuid-devel ncurses-devel glib2-devel pixman-devel yajl-devel bison libnl3-devel flex
+- name: ans_xen_xl
+  hosts: '{{ hosts | default("testsystems") }}'
+  gather_facts: yes
+  tasks:
+    - name: install required pkgs
+      dnf:
+        name:
+          - dosfstools
+          - genisoimage
+          - libvirt
+          - net-tools
+          - nfs-utils
+          - xen
+          - qemu-system-x86
+          - git
+          - python3-pip
+          - tcpdump
+          - wget
+          - python3-libselinux
+          - python3-aexpect
+          - jigdo
+          - network-scripts
+        state: latest
+        skip_broken: true
+        allowerasing: true
+
+    - name: disable selinux as it blocking xl command run
+      replace:
+        path: /etc/selinux/config
+        regexp: 'SELINUX=enforcing'
+        replace: 'SELINUX=disabled'
+
+    - name: enable NM service
+      systemd:
+        name: NetworkManager
+        enabled: yes
+        state: started
+
+    - name: enable libvirt service
+      service:
+        name: libvirtd
+        enabled: yes
+
+    - name: set xen as default boot kernel
+      shell: grub2-set-default "$( cat /boot/grub2/grub.cfg |grep Xen|grep menuentry|awk -F"'" '{print $2}')"
+
+    - name: set xenbr0 MAC consistent with {{ ansible_default_ipv4.interface }}
+      shell: |
+          nmcli con add type bridge con-name xenbr0 ifname xenbr0
+          nmcli con add type ethernet con-name {{ ansible_default_ipv4.interface }} ifname {{ ansible_default_ipv4.interface }} master xenbr0
+          nmcli con modify xenbr0 bridge.stp no
+    
+    - name: backup resolve.conf to /mnt
+      copy:
+        src: /etc/resolv.conf
+        dest: /mnt/resolv.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    # requires after fedora28
+    # https://unix.stackexchange.com/questions/545944/unable-to-reach-network-from-host-systems-guest-systems-are-working
+    - name: set xenbr0 MAC consistent with {{ ansible_default_ipv4.interface }}
+      shell: ip link set xenbr0 address {{ ansible_default_ipv4.macaddress }}
+
+    - name: Restart server
+      reboot:
+        reboot_timeout: 3600
+        test_command: xl list
+

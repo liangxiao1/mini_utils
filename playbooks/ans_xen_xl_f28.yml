@@ -1,6 +1,7 @@
 # Ansible playbook to set up xen host in Fedora 28
 - name: ans_xen_xl
   hosts: '{{ hosts | default("testsystems") }}'
+  gather_facts: yes
   tasks:
 
     - name: install required pkgs

@@ -30,65 +30,11 @@ import tempfile
 import pdb
 import string
 
+from tipset.libs.rmt_ssh import reverse_forward_tunnel, handler, sig_handler, build_connection
+
 default_port = 22
 
 ret_val = 0
-def sig_handler(signum, frame):
-    logging.info('Got signal %s, exit!', signum)
-    sys.exit(0)
-
-
-def handler(chan, host, port):
-    sock = socket.socket()
-    try:
-        sock.connect((host, port))
-    except Exception as e:
-        log.debug("Forwarding request to %s:%d failed: %r" %
-                  (host, port, e))
-        return
-
-    log.debug(
-        "Connected!  Tunnel open %r -> %r -> %r"
-        % (chan.origin_addr, chan.getpeername(), (host, port))
-    )
-    retry_count = 0
-    while True:
-        r, w, x = select.select([sock, chan], [], [])
-        if sock in r:
-            data = sock.recv(1024)
-            if len(data) == 0:
-                retry_count+=1
-                if retry_count>100:
-                    log.debug("No data received from sock")
-                    break
-            else:
-                chan.send(data)
-        if chan in r:
-            data = chan.recv(1024)
-            if len(data) == 0:
-                if retry_count>100:
-                    log.debug("No data received from chan")
-                    break
-            else:
-                sock.send(data)
-    chan.close()
-    sock.close()
-    log.debug("Tunnel closed from %r" % (chan.origin_addr,))
-
-
-def reverse_forward_tunnel(server_port, remote_host, remote_port, transport):
-    transport.request_port_forward("", server_port)
-
-    while True:
-        chan = transport.accept(1000)
-        if chan is None:
-            continue
-        thr = threading.Thread(
-            target=handler, args=(chan, remote_host, remote_port)
-        )
-        thr.setDaemon(True)
-        thr.start()
-
 
 class EC2VM:
     def __init__(self):
@@ -496,6 +442,8 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('-d', dest='is_debug', action='store_true',
                     help='run in debug mode', required=False)
+parser.add_argument('--enable_certrepo', dest='enable_certrepo', action='store_true',
+                    help='try to auto-reg system and enable cert repos for upgrade cert pkgs', required=False)
 parser.add_argument('--ami-id', dest='ami_id', default=None, action='store',
                     help='base ami id', required=True)
 parser.add_argument('--user', dest='user', default="ec2-user", action='store',
@@ -557,77 +505,9 @@ def create_ami():
     vm.reload()
     log.info("Instance created: %s" % vm.id)
     log.info("Instacne ip:%s" % vm.public_dns_name)
-
     log.info("Try to make connection to it ......")
-    ssh_client = paramiko.SSHClient()
-    ssh_client.load_system_host_keys()
-    ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy())
-    start_time = time.time()
-    while True:
-        try:
-            end_time = time.time()
-            if end_time-start_time > 180:
-                log.info("Unable to make connection!")
-                log.info("Terminate instance %s" % vm.id)
-                vm.terminate()
-                sys.exit(1)
-            if args.keyfile is None:
-                log.info('No key specified, use defaut!')
-                ssh_client.load_system_host_keys()
-                ssh_client.connect(vm.public_dns_name, username=args.user)
-            else:
-                log.info('Use key: {}'.format(args.keyfile))
-                if not os.path.exists(args.keyfile):
-                    log.error("{} not found".format(args.keyfile))
-                    log.info("Terminate instance %s" % vm.id)
-                    vm.terminate()
-                    sys.exit(1)
-                exception_list=[]
-                rmt_keyfile = args.keyfile
-                rmt_node = vm.public_dns_name
-                rmt_user = args.user
-                is_connected = False
-                pkey_RSAKey = paramiko.RSAKey.from_private_key_file(rmt_keyfile)
-                pkey_RSASHA256Key = paramiko.RSASHA256Key.from_private_key_file(rmt_keyfile)
-                pkey_RSASHA512Key = paramiko.RSASHA512Key.from_private_key_file(rmt_keyfile)
-                for pkey in [pkey_RSAKey, pkey_RSASHA256Key, pkey_RSASHA512Key]:
-                    try:
-                        log.info("Try to use {}".format(pkey.get_name()))
-                        ssh_client.connect(
-                            rmt_node,
-                            username=rmt_user,
-                            #key_filename=rmt_keyfile,
-                            pkey=pkey,
-                            look_for_keys=False,
-                            timeout=60
-                        )
-                        is_connected = True
-                        break
-                    except Exception as e:
-                        exception_list.append(e)
-                if is_connected:
-                    break
-                raise Exception(exception_list)
-        except Exception as e:
-            log.info("*** Failed to connect to %s:%d: %r" %
-                     (vm.public_dns_name, default_port, e))
-            log.info("Retry again, timeout 180s!")
-            time.sleep(10)
-    if args.proxy_url is not None:
-        log.info(
-            "Now forwarding remote port 8080 to %s ..."
-            % (args.proxy_url)
-        )
+    ssh_client = build_connection(rmt_node=vm.public_dns_name, rmt_user=args.user, rmt_keyfile=args.keyfile, rmt_proxy=args.proxy_url, timeout=180, interval=10, log=log)
 
-        try:
-            th_reverse = threading.Thread(target=reverse_forward_tunnel, args=(
-                8080, args.proxy_url.split(':')[0], int(args.proxy_url.split(':')[
-                    1]), ssh_client.get_transport()))
-            th_reverse.setDaemon(True)
-            th_reverse.start()
-        except KeyboardInterrupt:
-            print("C-c: Port forwarding stopped.")
-            sys.exit(0)
     if args.repo_url is None or len(args.repo_url) <= 20:
         run_cmd(ssh_client, "sudo yum repolist --enabled")
         ret = run_cmd(ssh_client, "sudo yum search kernel-debug")
@@ -690,6 +570,8 @@ gpgcheck=0
             log.info("delete tempfile %s", tmp_repo_file)
 
         for i in range(1,20):
+            if args.enable_certrepo:
+                break
             ret_val = run_cmd(ssh_client, 'sudo yum update -y')
             if ret_val > 0:
                 log.error("Failed to update system, try again! max:20 now:%s" % i)
@@ -702,6 +584,17 @@ gpgcheck=0
             log.error("Failed to update system again, exit!")
             vm.terminate()
             sys.exit(ret_val)
+    if args.enable_certrepo:
+        run_cmd(ssh_client, 'uname -a')
+        run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1 --rhsm.manage_repos=0 --rhsmcertd.auto_registration_interval=1')
+        run_cmd(ssh_client, 'sudo systemctl restart rhsmcertd')
+        time.sleep(180)
+        run_cmd(ssh_client, 'sudo subscription-manager status')
+        run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=1')
+        #run_cmd(ssh_client, 'sudo dnf update -y')
+        run_cmd(ssh_client, 'sudo dnf repolist all | grep cert')
+        run_cmd(ssh_client, 'sudo subscription-manager repos --enable cert-1-for-rhel*')
+        run_cmd(ssh_client, 'sudo subscription-manager repos --enable *baseos-debug-rpms')
     if args.pkgs is not None:
         for i in range(1,50):
             ret_val = run_cmd(ssh_client, 'sudo yum install -y %s' % args.pkgs.replace(',',' '))
@@ -720,6 +613,8 @@ gpgcheck=0
     if args.pkg_url is not None:
         pkg_names = ''
         for pkg in args.pkg_url.split(','):
+            if not pkg:
+                continue
             pkg_name = pkg.split('/')[-1]
             pkg_name_no_ver = get_pkg_name(s=pkg_name)
             log.info("Download %s from %s to /tmp/" % (pkg_name, pkg))
@@ -748,10 +643,11 @@ gpgcheck=0
     cmd = "[[ -f /etc/cloud/cloud.cfg.rpmnew ]] && sudo /bin/cp -f /etc/cloud/cloud.cfg.rpmnew /etc/cloud/cloud.cfg"
     run_cmd(ssh_client, cmd)
     run_cmd(ssh_client, 'sudo yum install -y python3 python3-pip')
-    run_cmd(ssh_client, 'sudo pip3 install -U os-tests==0.1.6')
-    run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
-    run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
-    run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
+    if not args.enable_certrepo:
+        run_cmd(ssh_client, 'sudo pip3 install -U os-tests==0.1.6')
+    #run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
+    #run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
+    #run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
     # clean journal, message and cloudinit log
     run_cmd(ssh_client, 'sudo journalctl --vacuum-time=1d')
     run_cmd(ssh_client, "sudo bash -c \"cat /dev/null > /var/log/messages\"")
@@ -761,8 +657,8 @@ gpgcheck=0
     if args.repo_url:
         run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
-    run_cmd(ssh_client, "sudo mkdir -p /etc/systemd/system/nm-cloud-setup.service.d")
-    run_cmd(ssh_client, "sudo bash -c \"echo -e '[Service]\nEnvironment=NM_CLOUD_SETUP_EC2=yes\n' > /etc/systemd/system/nm-cloud-setup.service.d/override.conf\"")
+    #run_cmd(ssh_client, "sudo mkdir -p /etc/systemd/system/nm-cloud-setup.service.d")
+    #run_cmd(ssh_client, "sudo bash -c \"echo -e '[Service]\nEnvironment=NM_CLOUD_SETUP_EC2=yes\n' > /etc/systemd/system/nm-cloud-setup.service.d/override.conf\"")
     #run_cmd(ssh_client, "sudo sed -i 's/#Environment=NM_CLOUD_SETUP_EC2=yes/Environment=NM_CLOUD_SETUP_EC2=yes/g' /usr/lib/systemd/system/nm-cloud-setup.service")
     if ret_val > 0:
         log.error("Failed to update system!")
