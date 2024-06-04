@@ -474,6 +474,8 @@ parser.add_argument('--pkgs',dest='pkgs',default=None,action='store',help='if re
 parser.add_argument('--cmds',dest='cmds',default=None,action='store',help='excute cmd before starting to create ami',required=False)
 parser.add_argument('--proxy_url', dest='proxy_url', default=None, action='store',
                     help='specify it if pkg/repo url is internal only, format IP:PORT', required=False)
+parser.add_argument('--new_ami', dest='new_ami', default='/tmp/new_ami', action='store',
+                    help='store new ami id to file, default is /tmp/new_ami', required=False)
 
 args = parser.parse_args()
 log = logging.getLogger(__name__)
@@ -643,8 +645,8 @@ gpgcheck=0
     cmd = "[[ -f /etc/cloud/cloud.cfg.rpmnew ]] && sudo /bin/cp -f /etc/cloud/cloud.cfg.rpmnew /etc/cloud/cloud.cfg"
     run_cmd(ssh_client, cmd)
     run_cmd(ssh_client, 'sudo yum install -y python3 python3-pip')
-    if not args.enable_certrepo:
-        run_cmd(ssh_client, 'sudo pip3 install -U os-tests==0.1.6')
+    #if not args.enable_certrepo:
+    #    run_cmd(ssh_client, 'sudo pip3 install -U os-tests==0.1.6')
     #run_cmd(ssh_client, 'sudo subscription-manager config --rhsmcertd.auto_registration=1')
     #run_cmd(ssh_client, 'sudo subscription-manager config --rhsm.manage_repos=0')
     #run_cmd(ssh_client, 'sudo systemctl enable rhsmcertd')
@@ -657,6 +659,7 @@ gpgcheck=0
     if args.repo_url:
         run_cmd(ssh_client, "sudo sed  -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/ami.repo")
         run_cmd(ssh_client, 'cat /etc/yum.repos.d/ami.repo')
+        run_cmd(ssh_client, 'sudo mv -f /etc/yum.repos.d/ami.repo /home/ec2-user/')
     #run_cmd(ssh_client, "sudo mkdir -p /etc/systemd/system/nm-cloud-setup.service.d")
     #run_cmd(ssh_client, "sudo bash -c \"echo -e '[Service]\nEnvironment=NM_CLOUD_SETUP_EC2=yes\n' > /etc/systemd/system/nm-cloud-setup.service.d/override.conf\"")
     #run_cmd(ssh_client, "sudo sed -i 's/#Environment=NM_CLOUD_SETUP_EC2=yes/Environment=NM_CLOUD_SETUP_EC2=yes/g' /usr/lib/systemd/system/nm-cloud-setup.service")
@@ -694,6 +697,10 @@ gpgcheck=0
     log.info("Terminate instance %s" % vm.id)
     vm.terminate()
     log.info("New AMI:%s" % image.id)
+    ami_id_file = args.new_ami or '/tmp/new_ami'
+    if args.new_ami:
+        with open(ami_id_file, 'w') as f:
+            f.write(image.id)
     return image.id
 
 

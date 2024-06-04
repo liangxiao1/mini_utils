@@ -243,7 +243,7 @@ def instance_get():
                 instance_type=instance["InstanceType"], cpu_count=vcpu_str, mem_size=int(instance["MemoryInfo"]["SizeInMiB"])/1024, disk_count=disk_count, net_perf=net_perf, ipv6_support=ipv6_support)
             write_count += 1
             with open(cfg_file_sum, 'a+') as fh:
-                fh.writelines(instance["InstanceType"]+',')
+                fh.writelines(instance["InstanceType"]+' ')
 
             if args.split_num is None:
                 continue

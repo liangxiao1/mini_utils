@@ -127,12 +127,18 @@ def get_by_pkg(pkg_info=None):
         else:
             LOG.debug('match:%s false',  KEYS_DATA[branch]['kernel'])
     if branch_name is None:
-        if kernel.startswith('3.'):
+        if kernel.startswith('3.') or 'el7' in kernel:
             branch_name = 'RHEL-7-latest'
-        elif kernel.startswith('4.'):
+        elif kernel.startswith('4.') or 'el8' in kernel:
             branch_name = 'RHEL-8-latest'
-        elif kernel.startswith('5'):
+        elif kernel.startswith('5') or 'el9' in kernel:
             branch_name = 'RHEL-9-latest'
+        elif kernel.startswith('6') or 'el10' in kernel:
+            branch_name = 'RHEL-10-latest'
+        elif kernel.startswith('7') or 'el11' in kernel:
+            branch_name = 'RHEL-11-latest'
+        elif 'el12' in kernel:
+            branch_name = 'RHEL-12-latest'
         else:
             branch_name = 'RHEL-latest'
     _, ami_id = get_by_branch(branch_name)
