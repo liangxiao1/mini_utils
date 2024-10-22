@@ -29,10 +29,10 @@ from yaml import load
 
 LOG_FORMAT = "%(levelname)s:FUNC-%(funcName)s:%(message)s"
 # pylint: disable=W1401
-BRANCH_REGEX = "RHEL-\d{1,2}.\d{1,2}"
+BRANCH_REGEX = "RHEL-\\d{1,2}.\\d{1,2}"
 # pylint: disable=W1401
-KERNEL_REGEX = "\d{1,7}.\d{1,7}.\d{1,7}-\d{1,7}"
-PKG_REGEX = 'el\d+_\d+'
+KERNEL_REGEX = "\\d{1,7}.\\d{1,7}.\\d{1,7}-\\d{1,7}"
+PKG_REGEX = 'el\\d+_\\d+'
 
 
 def get_by_branch(branch_name):
@@ -40,14 +40,22 @@ def get_by_branch(branch_name):
     get ami_id by parse branchname
     '''
     try:
+        key_name = "ec2_ami"
         if ARGS.arch == 'aarch64':
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_aarch64']
+            key_name += "_aarch64"
         else:
-            ami_id = KEYS_DATA[branch_name]['ec2_ami_x86_64']
-        LOG.debug('branch_name: %s ami_id: %s', branch_name, ami_id)
+            key_name += "_x86_64"
+        if ARGS.boot_mode == 'secure_boot':
+            key_name += "_secure_boot"
+        elif ARGS.boot_mode == 'uefi_tpm':
+            key_name += "_uefi_tpm"
+        elif ARGS.boot_mode == 'sev_snp':
+            key_name += "_sev_snp"
+        ami_id = KEYS_DATA[branch_name][key_name]
+        LOG.debug('branch_name: %s key_name: %s ami_id: %s', branch_name,key_name ,ami_id)
         return branch_name, ami_id
     except KeyError:
-        LOG.debug('branch_name: {} not found'.format(branch_name))
+        LOG.debug('branch_name: %s key_name: %s', branch_name,key_name)
         guess_list = []
         for i in KEYS_DATA.keys():
             if branch_name.upper() in i.upper():
@@ -73,6 +81,10 @@ def guess_branch(s=None):
         branch_name = 'CentOS-Stream-8'
     elif s.startswith('CentOS-Stream-9'):
         branch_name = 'CentOS-Stream-9'
+    elif s.startswith('CentOS-Stream-10'):
+        branch_name = 'CentOS-Stream-10'
+    elif s.startswith('CentOS-Stream-11'):
+        branch_name = 'CentOS-Stream-11'
     else:
         LOG.info("not found matched branch, try to check kernel")
         branch_name, _ = get_by_pkg(pkg_info=s)
@@ -107,12 +119,12 @@ def get_by_pkg(pkg_info=None):
         pkg = re.findall(PKG_REGEX, pkg_info)
         if pkg:
             pkg = pkg[0]
-            x_version = re.findall('\d+', pkg)[0]
-            y_version = re.findall('\d+', pkg)[1]
+            x_version = re.findall('\\d+', pkg)[0]
+            y_version = re.findall('\\d+', pkg)[1]
             branch_name = 'RHEL-{}.{}'.format(x_version, y_version)
         else:
-            pkg = re.findall('el\d+', pkg_info)
-            x_version = re.findall('\d+', pkg)[0]
+            pkg = re.findall('el\\d+', pkg_info)
+            x_version = re.findall('\\d+', pkg)[0]
             branch_name = 'RHEL-{}-latest'.format(x_version)
         LOG.info('No kernel format found, try from elx_y {}'.format(branch_name))
         _, ami_id = get_by_branch(branch_name)
@@ -164,6 +176,8 @@ if __name__ == '__main__':
                             required=False)
     ARG_PARSER.add_argument('-p', dest='arch', action='store', default=None,
                             help='aarch64|x86_64', required=False)
+    ARG_PARSER.add_argument('-m', dest='boot_mode', action='store', default=None,
+                            help='secure_boot,uefi_tpm,sev_snp', required=False)
 
     ARGS = ARG_PARSER.parse_args()
     LOG = logging.getLogger(__name__)
