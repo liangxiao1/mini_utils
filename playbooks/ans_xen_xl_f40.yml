@@ -1,0 +1,64 @@
+# Ansible playbook to set up xen host in Fedora 40
+- name: ans_xen_xl
+  hosts: '{{ hosts | default("testsystems") }}'
+  gather_facts: yes
+  tasks:
+    - name: install required pkgs
+      dnf:
+        name:
+          - dosfstools
+          - genisoimage
+          - libvirt
+          - net-tools
+          - nfs-utils
+          - xen
+          - qemu-system-x86
+          - git
+          - python3-pip
+          - tcpdump
+          - wget
+          - python3-libselinux
+          - python3-aexpect
+          - jigdo
+          - network-scripts
+        state: latest
+        skip_broken: true
+        allowerasing: true
+
+    - name: enable NM service
+      systemd:
+        name: NetworkManager
+        enabled: yes
+        state: started
+
+    - name: enable libvirt service
+      service:
+        name: libvirtd
+        enabled: yes
+
+    - name: generate the grub config file
+      shell: grub2-mkconfig -o /boot/grub2/grub.cfg
+
+    - name: set xen as default boot kernel
+      become: yes
+      shell: |
+        menuentry_line="$(grep -A 1 'menuentry ' /boot/grub2/grub.cfg | grep 'Xen')"
+        grub2-set-default "$(echo \"$menuentry_line\" | awk -F\' '{print $2}')"
+
+    - name: set xenbr0 interface
+      shell: |
+        nmcli con delete xenbr0
+        nmcli con add type bridge con-name xenbr0 ifname xenbr0
+        nmcli con modify {{ ansible_default_ipv4.interface }} controller xenbr0 master xenbr0 port-type bridge slave-type bridge
+        nmcli con modify xenbr0 bridge.stp no ethernet.cloned-mac-address {{ ansible_default_ipv4.macaddress }}
+
+    # requires after fedora28
+    # https://unix.stackexchange.com/questions/545944/unable-to-reach-network-from-host-systems-guest-systems-are-working
+    - name: set xenbr0 MAC consistent with {{ ansible_default_ipv4.interface }}
+      shell: ip link set xenbr0 address {{ ansible_default_ipv4.macaddress }}
+
+    - name: Restart server
+      reboot:
+        reboot_timeout: 3600
+        test_command: xl list
+
